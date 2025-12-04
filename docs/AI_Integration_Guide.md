@@ -1,23 +1,38 @@
 # Trip Kit - AI Integration Guide
-## LangGraph, OpenAI GPT-4, and DALL-E 3 Integration Patterns
+## Vibe-Driven AI: LangGraph, GPT-4, and DALL-E 3 Integration Patterns
+
+**"여행의 감성을 이해하고 시각화하는 AI"**
+*AI That Understands and Visualizes Your Travel Vibe*
 
 ---
 
 ## 📋 Document Information
 
-- **Document Version**: 1.0.0
-- **Last Updated**: 2025-12-03
+- **Document Version**: 2.0.0
+- **Last Updated**: 2025-12-04
 - **Target Framework**: LangGraph + OpenAI SDK
 - **Related Documents**: [TRD](./TRD_TripKit_MVP.md), [API Docs](./API_Documentation.md)
+- **Core Focus**: Vibe extraction, emotional preference matching, film aesthetic generation
 
 ---
 
 ## 🎯 Overview
 
-This guide provides implementation patterns for integrating Trip Kit with:
-1. **LangGraph**: Stateful conversation management
-2. **OpenAI GPT-4**: Intelligent recommendations and content generation
-3. **OpenAI DALL-E 3**: AI image generation
+This guide provides **vibe-driven AI integration patterns** for Trip Kit:
+
+### Core AI Components
+
+1. **LangGraph Vibe Analyzer**: Stateful conversation management that extracts emotional preferences through natural dialogue
+   - **Purpose**: Transform unstructured user messages → Structured vibe profile
+   - **Flow**: Mood → Aesthetic → Duration → Interests → Vibe Synthesis
+
+2. **GPT-4 Vibe Matcher**: Intelligent recommendation engine that matches user vibes to hidden local spots
+   - **Purpose**: Find places that resonate emotionally, not just functionally
+   - **Criteria**: Hidden spots, photogenic, authentic atmosphere, vibe-aligned
+
+3. **DALL-E 3 Vibe Visualizer**: Film-aesthetic image generation showing the imagined travel experience
+   - **Purpose**: "Show me what my vibe looks like in reality"
+   - **Style**: Authentic analog film photography (Kodak, Fuji, Ilford)
 
 ---
 
@@ -112,17 +127,25 @@ const conversationGraph = new StateGraph({
 ```typescript
 // lib/langgraph/nodes.ts
 
-// System prompt for all nodes
-const SYSTEM_PROMPT = `
-You are a knowledgeable travel curator specializing in aesthetic, film photography-focused travel experiences.
-Your goal is to understand the user's preferences through natural conversation.
+// Vibe-focused system prompt for all nodes
+const VIBE_SYSTEM_PROMPT = `
+You are Trip Kit's Vibe Curator—an empathetic AI specialist in emotional travel design.
 
-Guidelines:
-- Be warm, enthusiastic, and conversational
-- Ask one question at a time
-- Provide context for why you're asking
-- Use natural language, not robotic
-- Show excitement about travel possibilities
+Your mission: Extract user's travel "vibe" (emotional preferences, aesthetic vision, creative intent) through warm, natural conversation.
+
+Core Philosophy:
+- Travel is not just about WHERE to go, but HOW it FEELS and how to CAPTURE it
+- Every traveler has a unique aesthetic identity—your job is to discover it
+- Focus on EMOTION over EFFICIENCY, VIBE over ITINERARY
+
+Conversation Guidelines:
+- 🎨 Be warm, enthusiastic, and genuinely curious about their aesthetic vision
+- 🎯 Ask ONE question at a time—deep listening, not interrogation
+- 💡 Provide context: "I'm asking because..." (help them understand the why)
+- 🌟 Use evocative language: "vibe," "aesthetic," "mood," "feel," not just "preference"
+- 📸 Show excitement about creating their unique visual story
+
+Remember: You're not a travel agent—you're a creative collaborator designing their aesthetic experience.
 `;
 
 // Init Node: Welcome user
@@ -155,27 +178,39 @@ What speaks to you?
   };
 }
 
-// Mood Node: Extract mood preference
+// Mood Node: Extract emotional vibe preference
 async function moodNode(state: ConversationState): Promise<Partial<ConversationState>> {
   const userMessage = state.messages[state.messages.length - 1].content;
 
-  // Use GPT-4 to extract mood and generate response
-  const extractionPrompt = `
-${SYSTEM_PROMPT}
+  // Use GPT-4 to extract vibe and generate empathetic response
+  const vibeExtractionPrompt = `
+${VIBE_SYSTEM_PROMPT}
 
 User said: "${userMessage}"
 
+Context: This is the first step in understanding their travel vibe. Their mood/emotional state is the FOUNDATION for all recommendations.
+
 Task:
-1. Extract the user's mood/vibe from their message
-2. Map to one of: romantic, adventurous, nostalgic, peaceful
-3. Generate a warm, conversational response acknowledging their mood
-4. Ask about their aesthetic preference (urban vs nature, vintage vs modern)
+1. Extract the user's EMOTIONAL VIBE from their message
+   - Listen for: feelings, emotions, desired atmosphere, energy level
+   - Map to: romantic (intimate, dreamy), adventurous (exciting, bold), nostalgic (timeless, sentimental), peaceful (calm, reflective)
+
+2. Generate a WARM, EMPATHETIC response that:
+   - Acknowledges their vibe with enthusiasm: "Ooh, [mood] vibes—I love that!"
+   - Validates their emotional direction
+   - Smoothly transitions to aesthetic preferences
+   - Ask: "What VISUAL STYLE speaks to you?" (urban streets vs natural landscapes, vintage charm vs modern sleekness)
+
+3. Use evocative language that resonates emotionally
 
 Respond in JSON format:
 {
   "mood": "romantic|adventurous|nostalgic|peaceful",
-  "reply": "Your conversational response with next question"
+  "emotionalTone": "Brief description of their emotional energy (e.g., 'dreamy and intimate')",
+  "reply": "Your warm, conversational response asking about aesthetic next"
 }
+
+Example reply: "Ooh, romantic vibes—I love that! There's something magical about creating those intimate, dreamy moments while traveling. Now, when you picture this trip visually, what aesthetic speaks to you? Are you drawn to charming urban streets and cafés, or more natural landscapes and open spaces? Vintage, timeless charm or sleek, modern design?"
   `;
 
   const response = await model.invoke([
@@ -440,20 +475,30 @@ await saveConversationState(sessionId, result);
 ```typescript
 // lib/ai/prompts/destination-recommendations.ts
 
-export function buildDestinationPrompt(preferences: UserPreferences): string {
+export function buildVibeMatchedDestinationPrompt(preferences: UserPreferences): string {
   const { mood, aesthetic, duration, interests, concept } = preferences;
 
   return `
-You are an expert travel curator with deep knowledge of hidden, non-touristy destinations worldwide.
+You are Trip Kit's Vibe Matcher—an expert curator specializing in EMOTIONAL TRAVEL DESIGN.
 
-User Preferences:
-- Mood/Vibe: ${mood} (${getMoodDescription(mood)})
-- Aesthetic: ${aesthetic} (${getAestheticDescription(aesthetic)})
-- Trip Duration: ${duration} (${getDurationDescription(duration)})
-- Interests: ${interests.join(', ')}
-${concept ? `- Selected Concept: ${concept} (${getConceptDescription(concept)})` : ''}
+Your mission: Match user's travel vibe to hidden, authentic destinations that RESONATE with their aesthetic identity.
 
-Task: Generate exactly 3 unique destination recommendations that:
+User's Travel Vibe Profile:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎭 Emotional Mood: ${mood} (${getMoodDescription(mood)})
+🎨 Visual Aesthetic: ${aesthetic} (${getAestheticDescription(aesthetic)})
+⏱️ Trip Duration: ${duration} (${getDurationDescription(duration)})
+💫 Interests: ${interests.join(', ')}
+${concept ? `🎬 Selected Concept: ${concept} (${getConceptDescription(concept)})` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Core Philosophy:
+- This traveler wants VIBE-DRIVEN experiences, not efficiency-driven itineraries
+- They value AESTHETIC ATMOSPHERE over mainstream attractions
+- They're creating a VISUAL STORY, not just visiting places
+- EMOTION and PHOTOGRAPHY are primary motivators
+
+Task: Generate exactly 3 vibe-matched destination recommendations that:
 
 1. **Are NOT mainstream tourist destinations** (avoid top-10 lists, cruise ship ports, overly commercialized areas)
 2. **Highly photogenic** with strong aesthetic appeal for film photography

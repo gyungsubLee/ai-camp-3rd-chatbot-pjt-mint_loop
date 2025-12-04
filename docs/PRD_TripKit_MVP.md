@@ -21,22 +21,42 @@
 
 ### Tagline
 "당신은 티켓만 끊으세요. 여행의 '분위기(Vibe)'는 우리가 챙겨드립니다."
+*("You just book the ticket. We'll take care of your travel vibe.")*
 
 ### One-Line Definition
-AI-powered emotional travel platform that curates film cameras, styling, and props for special moments, delivering an all-in-one kit through O2O services.
+AI가 사용자의 여행 '분위기(Vibe)'를 분석하여 [특별한 장소 → 의상 → 필름 카메라 스타일 → 소품]을 큐레이션해주는 감성 기반 여행 플랫폼.
+
+**English**: AI-powered emotional travel platform that analyzes your travel "vibe" to curate [special locations → outfit styling → film camera aesthetics → props] for unforgettable aesthetic experiences.
 
 ### Problem Statement
-Existing travel AI focuses solely on "efficiency" (routes and schedules), but Gen Z/Millennials seek **"Instagram-worthy moments"** and **"unique emotional experiences"** from their travels.
+**기존 여행 AI의 한계 (Pain Point)**:
+- Existing travel AI focuses on **"efficiency"** (routes, itineraries, cost optimization)
+- Services like Google Travel, Naver, TripAdvisor prioritize **planning automation**
+- **Emotional preferences, aesthetic vision, and photography concepts are ignored**
+
+**2030 세대가 원하는 것 (What Gen Z/Millennials Actually Want)**:
+- **"인생샷 (Life Shots)"** + **"나만의 감성 (Personal Aesthetic)"** + **"스토리 있는 여행 (Story-driven Travel)"**
+- Travel is not just about visiting—it's about **creating memorable records and shareable experiences**
+- Instagram/Film/Lookbook culture: **Vibe matters more than destinations**
 
 ### Solution
-Trip Kit analyzes user preferences and destinations to recommend hidden local spots, and curates personalized [film camera + outfit + props] packages delivered as rental kits.
+Trip Kit analyzes user preferences through conversational AI to understand their **travel vibe**, then:
+
+1. **AI Chatbot**: Extracts preferences step-by-step (mood → aesthetic → duration → interests → concept)
+2. **Hidden Spot Recommendations**: Suggests authentic, local-favorite locations (not tourist traps)
+3. **Image Generation**: Creates film-aesthetic preview images showing what the experience will look like
+4. **Complete Styling Package**: Recommends [film camera + outfit + props + camera settings + angles]
+5. **(Future) O2O Kit Delivery**: Physical rental kits delivered to your location (Post-MVP)
 
 ---
 
 ## 🎯 Product Vision & Goals
 
 ### Vision
-Create the go-to platform for emotional, aesthetic travel experiences that generate unforgettable memories and shareable moments.
+**"여행의 감성을 설계하는 AI 큐레이터"**
+*"The AI Curator That Designs Your Travel Vibe"*
+
+Create the go-to platform where travelers discover their unique aesthetic identity and bring it to life through curated emotional experiences—not just destinations, but complete **vibe packages** that transform ordinary trips into unforgettable visual stories.
 
 ### Success Metrics (1-Week MVP)
 | Metric | Target | Measurement Method |
@@ -81,23 +101,52 @@ Create the go-to platform for emotional, aesthetic travel experiences that gener
 
 ---
 
-## ⚡ Core Features (MVP - Week 1)
+## ⚡ Core Value Proposition
 
-### 1. AI Chatbot Destination Discovery
+### What Makes Trip Kit Different?
+
+| Traditional Travel AI | Trip Kit |
+|---------------------|----------|
+| ❌ Efficiency-focused (routes, schedules) | ✅ **Vibe-focused** (mood, aesthetic, emotion) |
+| ❌ Tourist-trap recommendations | ✅ **Hidden local spots** curated for photography |
+| ❌ Generic "top 10" lists | ✅ **Personalized aesthetic packages** |
+| ❌ "Where to go" | ✅ **"How to experience and capture it"** |
+| ❌ Planning automation only | ✅ **Complete creative direction** (location + styling + equipment) |
+
+### Core Value Delivery
+
+① **감성 기반 'Vibe' 추천**: Mood / Aesthetic / Film / Outfit / Spots—여행 전체를 하나의 콘셉트로 패키징
+
+② **시각화**: AI-generated preview images showing your imagined travel scene as reality
+
+③ **실행 가능성**: Complete actionable package (location + outfit + film stock + camera settings + angles)
+
+---
+
+## 🎯 Core Features (MVP - Week 1)
+
+### 1. AI Chatbot for Vibe Analysis & Destination Discovery
 **Priority**: P0 (Critical)
 
 #### User Story
-> "As a traveler, I want to chat with AI about my preferences so that I receive personalized destination recommendations."
+> "As a traveler, I want to chat with AI about my travel vibe so that I receive personalized destinations that match my emotional and aesthetic preferences—not just efficient routes, but places that resonate with my mood and creative vision."
 
 #### Functional Requirements
-- **Chat Interface**: Simple text-based conversation flow
-- **Scenario-Based Questions**: 5-7 questions to understand:
-  - Travel dates & duration
-  - Mood/vibe preference (e.g., romantic, adventurous, nostalgic)
-  - Aesthetic preferences (urban, nature, vintage)
-  - Photography interests
-- **AI Processing**: LangGraph-powered conversation logic
-- **Output**: 3 curated destination recommendations with rationale
+- **Chat Interface**: Natural, conversational text-based flow
+- **Vibe Extraction Scenario**: 5-7 questions to deeply understand user's **travel vibe**:
+  - **Mood**: Romantic, adventurous, nostalgic, peaceful (emotional state)
+  - **Aesthetic**: Urban, nature, vintage, modern (visual preference)
+  - **Duration**: Short (1-3d), medium (4-7d), long (8+d)
+  - **Interests**: Photography, food, art, history, nature, architecture
+  - **Concept Selection** (after destinations): Flâneur, Film Log, Midnight
+- **AI Processing**:
+  - LangGraph-powered state management
+  - GPT-4 for natural language understanding and vibe extraction
+  - Structured output: User messages → **Preference JSON** with reasoning
+- **Output**:
+  - 3 curated destination recommendations
+  - Each with **matchReason** explaining why it fits user's vibe
+  - Photography score, accessibility, safety ratings
 
 #### Acceptance Criteria
 - [ ] User can initiate conversation within 2 clicks
@@ -177,7 +226,7 @@ Create the go-to platform for emotional, aesthetic travel experiences that gener
 **Priority**: P1 (High)
 
 #### User Story
-> "As a user, I want to see AI-generated preview images of myself at recommended locations so that I can visualize the experience."
+> "As a user, I want to see AI-generated preview images showing what my travel vibe will look like in reality—myself at the location with the recommended styling and film aesthetic—so I can visualize and prepare for the perfect shot."
 
 #### Functional Requirements
 - **Image Generation Flow**:

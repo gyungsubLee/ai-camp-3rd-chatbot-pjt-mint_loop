@@ -1,17 +1,27 @@
 # Trip Kit API Documentation
-## RESTful API Reference - MVP v1.0
+## Vibe-Driven Travel API Reference - MVP v1.0
+
+**"여행의 감성을 설계하는 AI API"**
+*AI API That Designs Your Travel Vibe*
 
 ---
 
 ## 📋 Document Information
 
 - **API Version**: 1.0.0
-- **Last Updated**: 2025-12-03
+- **Last Updated**: 2025-12-04
 - **Base URL**: `https://tripkit.vercel.app/api` (production)
 - **Base URL**: `http://localhost:3000/api` (development)
 - **Protocol**: HTTPS (production), HTTP (development)
 - **Content-Type**: `application/json`
 - **Related Documents**: [TRD](./TRD_TripKit_MVP.md), [PRD](./PRD_TripKit_MVP.md)
+
+### API Philosophy
+This API enables **vibe-driven travel experiences** by:
+1. **Extracting emotional preferences** through conversational AI
+2. **Matching vibes to hidden local spots** (not tourist traps)
+3. **Visualizing the experience** through film-aesthetic image generation
+4. **Providing complete styling packages** for authentic aesthetic documentation
 
 ---
 
@@ -111,11 +121,15 @@ X-RateLimit-Reset: 1638360000
 
 ## 📡 API Endpoints
 
-## 1. Chat Conversation
+---
+
+## 1. Vibe Extraction Chat
 
 ### POST /api/chat
 
-Process conversation messages and advance chatbot state.
+**Purpose**: Extract user's travel vibe through natural conversation, transforming unstructured emotional preferences into structured vibe profile.
+
+**Vibe Extraction Flow**: Mood → Aesthetic → Duration → Interests → Complete Vibe Profile
 
 #### Request
 
@@ -225,11 +239,13 @@ console.log(data.reply);
 
 ---
 
-## 2. Destination Recommendations
+## 2. Vibe-Matched Destination Recommendations
 
 ### POST /api/recommendations/destinations
 
-Generate destination recommendations based on user preferences.
+**Purpose**: Generate destination recommendations that match user's **travel vibe**—not just efficient routes, but places that resonate with their emotional and aesthetic preferences.
+
+**Vibe Matching Algorithm**: Analyzes mood + aesthetic + interests to find hidden local spots (not tourist traps) with high photography potential and authentic atmosphere.
 
 #### Request
 
@@ -387,7 +403,14 @@ console.log(`Found ${destinations.length} destinations`);
 
 ### POST /api/recommendations/hidden-spots
 
-Generate hidden, local-favorite locations for a selected destination.
+**Purpose**: Generate **hidden, local-favorite locations** within a destination that match the user's vibe and aesthetic concept—places locals know but tourists don't.
+
+**Hidden Spot Criteria**:
+- ❌ NOT in top-10 tourist lists or guidebooks
+- ✅ Highly photogenic with strong aesthetic appeal
+- ✅ Authentic local atmosphere
+- ✅ Matches selected concept (Flâneur/Film Log/Midnight)
+- ✅ Accessible and safe
 
 #### Request
 
@@ -539,11 +562,18 @@ curl -X POST https://tripkit.vercel.app/api/recommendations/hidden-spots \
 
 ---
 
-## 4. Image Generation
+## 4. Film Aesthetic Image Generation
 
 ### POST /api/generate/image
 
-Generate AI preview image for a specific location.
+**Purpose**: Generate AI preview image showing what your **travel vibe will look like in reality**—yourself at the location with recommended styling and authentic film aesthetic.
+
+**Film Aesthetic Features**:
+- 📸 Film stock simulation (Kodak ColorPlus, Portra, Fuji Superia, Ilford HP5)
+- 🎨 Film grain texture and vignetting
+- 🌅 Natural lighting (golden hour, blue hour, etc.)
+- 👗 Recommended outfit styling
+- 📷 Authentic analog photography look (not digital filters)
 
 #### Request
 
@@ -717,11 +747,19 @@ if (initialData.status === 'pending') {
 
 ---
 
-## 5. Styling & Film Recommendations
+## 5. Complete Vibe Styling Package
 
 ### POST /api/recommendations/styling
 
-Get comprehensive film camera, outfit, and prop recommendations.
+**Purpose**: Get comprehensive **vibe-aligned styling package** including film camera, outfit, props, camera settings, and photography angles—everything needed to bring your travel vibe to life.
+
+**Package Includes**:
+- 📷 Film camera recommendation (model, characteristics, rental info)
+- 🎞️ Film stock recommendation (type, ISO, color profile, sample images)
+- ⚙️ Camera settings (aperture, shutter speed, metering mode)
+- 👗 Outfit styling (color palette, specific items, seasonal notes)
+- 🧸 Props (2-3 items to enhance aesthetic)
+- 📐 Best angles (3-5 composition techniques with visual examples)
 
 #### Request
 

@@ -16,15 +16,16 @@
 
 ## 🏗️ System Architecture Overview
 
-### High-Level Architecture
+### High-Level Architecture (Vibe-Driven)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         Client Layer                         │
 │                    (Next.js 14+ App Router)                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  Chat UI     │  │  Concept     │  │  Location    │     │
-│  │  Component   │  │  Selector    │  │  Gallery     │     │
+│  │  Vibe Chat   │  │  Concept     │  │  Hidden      │     │
+│  │  Interface   │  │  Selector    │  │  Spot        │     │
+│  │  (AI Dialog) │  │  (3 Themes)  │  │  Gallery     │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
 └─────────────────────────────────────────────────────────────┘
                             │
@@ -33,44 +34,56 @@
 │                      API Layer (Next.js)                     │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │ /api/chat    │  │ /api/        │  │ /api/        │     │
-│  │              │  │ recommend    │  │ generate     │     │
+│  │ (Vibe        │  │ recommend    │  │ generate     │     │
+│  │  Extraction) │  │ (Hidden      │  │ (Film        │     │
+│  │              │  │  Spots)      │  │  Aesthetic)  │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                     Service Layer                            │
+│              Service Layer (Vibe Processing)                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  LangGraph   │  │  Destination │  │  Image Gen   │     │
-│  │  Chatbot     │  │  Recommender │  │  Service     │     │
+│  │  LangGraph   │  │  Vibe-Based  │  │  Film        │     │
+│  │  Vibe        │  │  Destination │  │  Aesthetic   │     │
+│  │  Analyzer    │  │  Recommender │  │  Generator   │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
+│          ↓                 ↓                   ↓            │
+│   Mood→Aesthetic    Hidden Local Spots    DALL-E 3         │
+│   →Duration         (Not Tourist Traps)   Film Style       │
+│   →Interests                                                │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                   External Services                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   OpenAI     │  │   DALL-E 3   │  │   Maps API   │     │
-│  │   GPT-4      │  │              │  │  (Optional)  │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│                   External AI Services                       │
+│  ┌──────────────┐  ┌──────────────┐                        │
+│  │   OpenAI     │  │   DALL-E 3   │                        │
+│  │   GPT-4      │  │   (HD Film   │                        │
+│  │   (Vibe NLU) │  │   Aesthetic) │                        │
+│  └──────────────┘  └──────────────┘                        │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              Storage Layer (MVP: Session Only)               │
+│         Storage Layer (MVP: Session-Based Vibe)              │
 │  ┌──────────────┐  ┌──────────────┐                        │
 │  │   Browser    │  │    Redis     │                        │
-│  │  SessionStorage│ │  (Optional)  │                        │
+│  │  Vibe State  │  │  (Optional)  │                        │
+│  │  (Session)   │  │              │                        │
 │  └──────────────┘  └──────────────┘                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Architecture Principles
-1. **API-First Design**: All features exposed through RESTful APIs
-2. **Stateless**: No server-side session storage (browser session only)
-3. **Serverless**: Leverage Vercel serverless functions
-4. **Modular Services**: Clear separation between chatbot, recommendations, image generation
-5. **External API Abstraction**: Wrap external APIs for easier testing & swapping
+1. **Vibe-First Design**: All recommendations flow from extracted user vibe (mood + aesthetic + interests)
+2. **AI-Powered Personalization**: GPT-4 analyzes natural language to understand emotional preferences
+3. **Stateless Sessions**: Browser-based vibe state management (no server persistence in MVP)
+4. **Modular Vibe Services**:
+   - **Vibe Analyzer** (LangGraph): Extracts emotional preferences through conversation
+   - **Vibe Matcher** (GPT-4): Matches preferences to hidden local spots
+   - **Vibe Visualizer** (DALL-E 3): Generates film-aesthetic preview images
+5. **External API Abstraction**: Wrap OpenAI APIs for easier testing & prompt versioning
 
 ---
 
@@ -113,18 +126,26 @@
 
 ## 📐 System Design
 
-### 1. Conversation Engine (LangGraph)
+### 1. Vibe Analysis Engine (LangGraph)
 
-#### State Graph Structure
+**Purpose**: Extract user's travel "vibe" through natural conversation, transforming unstructured preferences into structured vibe profile.
+
+#### State Graph Structure (Vibe Extraction Flow)
 ```typescript
 interface ConversationState {
   step: 'init' | 'mood' | 'aesthetic' | 'duration' | 'interests' | 'complete';
   messages: Message[];
   userPreferences: {
-    mood?: string;
-    aesthetic?: string;
-    duration?: string;
-    interests?: string[];
+    mood?: 'romantic' | 'adventurous' | 'nostalgic' | 'peaceful';
+    aesthetic?: 'urban' | 'nature' | 'vintage' | 'modern';
+    duration?: 'short' | 'medium' | 'long';
+    interests?: ('photography' | 'food' | 'art' | 'history' | 'nature')[];
+  };
+  vibeProfile?: {
+    emotionalTone: string;
+    visualStyle: string;
+    energyLevel: 'calm' | 'moderate' | 'high';
+    photoFocus: boolean;
   };
   recommendations?: Destination[];
 }
@@ -132,25 +153,35 @@ interface ConversationState {
 type StateTransition = (state: ConversationState) => ConversationState;
 ```
 
-#### LangGraph Flow
+#### LangGraph Vibe Extraction Flow
 ```
 [START]
   ↓
-[Welcome Node] → Ask user name/greeting
+[Welcome Node] → Warm greeting, explain vibe-based curation
   ↓
-[Mood Node] → "What vibe are you feeling? (romantic/adventurous/nostalgic)"
+[Mood Node] → "What vibe are you feeling for this trip?"
+              Extract: romantic/adventurous/nostalgic/peaceful
+              Why: Emotional foundation for all recommendations
   ↓
-[Aesthetic Node] → "Urban or nature? Modern or vintage?"
+[Aesthetic Node] → "What visual style speaks to you?"
+                   Extract: urban/nature/vintage/modern
+                   Why: Determines location aesthetics and film style
   ↓
-[Duration Node] → "How long is your trip?"
+[Duration Node] → "How much time do you have?"
+                  Extract: short (1-3d) / medium (4-7d) / long (8+d)
+                  Why: Scope of recommendations and depth
   ↓
-[Interests Node] → "Photography? Food? Art?"
+[Interests Node] → "What draws you in? Photography? Food? Art?"
+                   Extract: Array of interests
+                   Why: Fine-tune spot recommendations and styling
   ↓
-[Analysis Node] → Process preferences with GPT-4
+[Vibe Synthesis Node] → Combine all preferences into "Vibe Profile"
+                        Generate: emotionalTone + visualStyle + energyLevel
   ↓
-[Recommendation Node] → Generate 3 destinations
+[Recommendation Node] → GPT-4 generates 3 vibe-matched destinations
+                        Each with matchReason explaining vibe alignment
   ↓
-[END]
+[END] → User proceeds to concept selection
 ```
 
 #### Key Functions
