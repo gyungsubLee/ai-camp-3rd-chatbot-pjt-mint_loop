@@ -21,45 +21,133 @@
 
 ## 🤖 Available Sub-Agents
 
-### 1. Frontend Developer
-**파일**: `frontend-developer.md`
-**전문 분야**: React, Next.js, TypeScript, Tailwind CSS, Zustand
+| 에이전트 | 파일 | 전문 분야 |
+|----------|------|-----------|
+| Frontend Developer | `frontend-developer.md` | React, Next.js, TypeScript, Tailwind |
+| Backend Developer | `backend-developer.md` | Supabase, Python, MCP 서버 |
+| LangGraph Specialist | `langgraph-specialist.md` | LangGraph, StateGraph, 워크플로우 |
+| Test Engineer | `test-engineer.md` | Jest, Pytest, Playwright |
+| Documentation Specialist | `documentation-specialist.md` | API 문서, Mermaid 다이어그램 |
+| DevOps Engineer | `devops-engineer.md` | Docker, CI/CD, Vercel |
 
-**주요 책임**:
-- React 컴포넌트 개발
+---
+
+## 🎯 역할 할당 매트릭스
+
+### Frontend Developer (필수 담당)
+- React/Next.js 컴포넌트 생성
 - TypeScript 타입 정의
 - Zustand 상태 관리
 - Tailwind CSS 스타일링
-- API 통합
-- 접근성 및 반응형 디자인
+- 접근성 구현
+
+### Backend Developer (필수 담당)
+- Supabase 스키마 설계
+- RLS 정책 구현
+- Python 백엔드 로직
+- MCP 서버 개발
+- API 엔드포인트
+
+### LangGraph Specialist (필수 담당)
+- StateGraph 설계
+- Node/Edge 구현
+- 워크플로우 아키텍처
+- MCP와 LangGraph 통합
+- 프롬프트 엔지니어링
+
+### Test Engineer (필수 담당)
+- 단위 테스트 (Jest, Pytest)
+- 통합 테스트
+- E2E 테스트 (Playwright)
+- 커버리지 관리
+
+### Documentation Specialist (필수 담당)
+- API 문서
+- 아키텍처 문서 (ADRs)
+- README/CHANGELOG
+- Mermaid 다이어그램
+
+### DevOps Engineer (필수 담당)
+- Docker 구성
+- CI/CD 파이프라인
+- Vercel 배포
+- 환경 관리
+
+---
+
+## 📋 상세 에이전트 정보
+
+### 1. Frontend Developer
+
+**파일**: `frontend-developer.md`
+**전문 분야**: React, Next.js, TypeScript, Tailwind CSS, Zustand
+
+#### 역할 할당 (MUST Handle)
+
+이 에이전트는 다음 작업에 **반드시** 할당되어야 합니다:
+- React 컴포넌트 생성 및 리팩토링
+- Next.js 페이지 및 라우팅 구현
+- TypeScript 타입 정의 및 인터페이스 설계
+- Tailwind CSS 스타일링 및 반응형 디자인
+- Zustand 상태 관리 로직
+- 접근성 (a11y) 구현
+- 성능 최적화 (React.memo, useCallback, useMemo)
+
+#### 위임 규칙 (MUST NOT Handle)
+
+이 에이전트는 다음 작업을 처리하면 **안됩니다**. 적절한 에이전트에게 위임하세요:
+
+| 작업 유형 | 위임 대상 |
+|-----------|----------|
+| Supabase 스키마 | → backend-developer |
+| RLS 정책 | → backend-developer |
+| Python 코드 | → backend-developer |
+| MCP 서버 로직 | → backend-developer |
+| LangGraph 워크플로우 | → langgraph-specialist |
+| 테스트 코드 작성 | → test-engineer |
+| API 문서 작성 | → documentation-specialist |
+| Docker 설정 | → devops-engineer |
+| CI/CD 파이프라인 | → devops-engineer |
 
 **사용 예시**:
 ```
-// 메인 Claude에서 호출
 Task: "Create a FilmAestheticCard component that displays film stock information with vintage styling"
 Agent: frontend-developer
-Model: sonnet  # 빠른 작업은 sonnet
+Model: sonnet
 ```
-
-**적합한 작업**:
-- 새 컴포넌트 생성
-- 기존 컴포넌트 리팩토링
-- 상태 관리 로직 구현
-- UI/UX 개선
-- 타입 정의
 
 ---
 
 ### 2. Backend Developer
+
 **파일**: `backend-developer.md`
 **전문 분야**: Supabase, Python, LangGraph, MCP Servers
 
-**주요 책임**:
-- Supabase 스키마 설계
-- RLS 정책 설정
-- Python AI 에이전트 개발
-- MCP 서버 구축
-- API 엔드포인트 구현
+#### 역할 할당 (MUST Handle)
+
+이 에이전트는 다음 작업에 **반드시** 할당되어야 합니다:
+- Supabase 데이터베이스 스키마 설계
+- Supabase RLS (Row Level Security) 정책 구현
+- Supabase Edge Functions 개발
+- Python 백엔드 서비스 개발
+- MCP (Model Context Protocol) 서버 구축
+- API 엔드포인트 설계 및 구현
+- Supabase Auth 통합
+
+#### 위임 규칙 (MUST NOT Handle)
+
+이 에이전트는 다음 작업을 처리하면 **안됩니다**. 적절한 에이전트에게 위임하세요:
+
+| 작업 유형 | 위임 대상 |
+|-----------|----------|
+| React 컴포넌트 | → frontend-developer |
+| UI/UX 구현 | → frontend-developer |
+| Tailwind 스타일링 | → frontend-developer |
+| LangGraph 워크플로우 설계 | → langgraph-specialist |
+| 테스트 코드 작성 | → test-engineer |
+| API 문서 작성 | → documentation-specialist |
+| Docker 설정 | → devops-engineer |
+| CI/CD 파이프라인 | → devops-engineer |
 
 **사용 예시**:
 ```
@@ -68,25 +156,41 @@ Agent: backend-developer
 Model: sonnet
 ```
 
-**적합한 작업**:
-- 데이터베이스 스키마 설계
-- Python 비즈니스 로직 구현
-- Supabase 통합
-- MCP 서버 개발
-- API 엔드포인트 구현
-
 ---
 
 ### 3. LangGraph Specialist
+
 **파일**: `langgraph-specialist.md`
 **전문 분야**: LangGraph, StateGraph, Multi-Agent Systems
 
-**주요 책임**:
-- LangGraph 워크플로우 설계
-- State schema 정의
-- Node/Edge 구현
-- Conditional routing
-- MCP 통합
+#### 역할 할당 (MUST Handle)
+
+이 에이전트는 다음 작업에 **반드시** 할당되어야 합니다:
+- LangGraph StateGraph 설계 및 구현
+- 멀티 에이전트 시스템 아키텍처 설계
+- Node, Edge, Conditional routing 구현
+- State 스키마 정의 (TypedDict, Pydantic)
+- Checkpointer 구성 및 상태 관리
+- MCP 서버와 LangGraph 통합
+- 프롬프트 엔지니어링 및 최적화
+- 워크플로우 디버깅 및 시각화
+- 비동기 워크플로우 오케스트레이션
+
+#### 위임 규칙 (MUST NOT Handle)
+
+이 에이전트는 다음 작업을 처리하면 **안됩니다**. 적절한 에이전트에게 위임하세요:
+
+| 작업 유형 | 위임 대상 |
+|-----------|----------|
+| React/Next.js UI 컴포넌트 | → frontend-developer |
+| Tailwind 스타일링 | → frontend-developer |
+| Supabase 스키마/RLS | → backend-developer |
+| 데이터베이스 마이그레이션 | → backend-developer |
+| MCP 서버 구현 (워크플로우 외) | → backend-developer |
+| 단위/통합 테스트 | → test-engineer |
+| 워크플로우 테스트 | → test-engineer |
+| CI/CD 구성 | → devops-engineer |
+| 기술 문서 | → documentation-specialist |
 
 **사용 예시**:
 ```
@@ -95,24 +199,41 @@ Agent: langgraph-specialist
 Model: sonnet  # 복잡한 로직은 opus도 고려
 ```
 
-**적합한 작업**:
-- AI 워크플로우 아키텍처
-- 복잡한 상태 관리
-- Multi-agent orchestration
-- Prompt engineering
-
 ---
 
 ### 4. Test Engineer
+
 **파일**: `test-engineer.md`
 **전문 분야**: Jest, Pytest, React Testing Library, Playwright
 
-**주요 책임**:
-- 단위 테스트 작성
+#### 역할 할당 (MUST Handle)
+
+이 에이전트는 다음 작업에 **반드시** 할당되어야 합니다:
+- 단위 테스트 작성 (Jest, Pytest)
 - 통합 테스트 구현
-- E2E 테스트 시나리오
-- 테스트 커버리지 관리
-- CI/CD 테스트 설정
+- E2E 테스트 시나리오 (Playwright)
+- 컴포넌트 테스트 (React Testing Library)
+- API 엔드포인트 테스트
+- 테스트 커버리지 관리 (목표: >80%)
+- CI/CD 파이프라인 테스트 구성
+- 버그 재현 및 회귀 테스트
+- Mock 및 Stub 설정
+- 테스트 데이터 생성
+
+#### 위임 규칙 (MUST NOT Handle)
+
+이 에이전트는 다음 작업을 처리하면 **안됩니다**. 적절한 에이전트에게 위임하세요:
+
+| 작업 유형 | 위임 대상 |
+|-----------|----------|
+| React 컴포넌트 구현 | → frontend-developer |
+| UI 스타일링 수정 | → frontend-developer |
+| Backend API 구현 | → backend-developer |
+| 데이터베이스 스키마 변경 | → backend-developer |
+| LangGraph 워크플로우 설계 | → langgraph-specialist |
+| CI/CD 파이프라인 설정 | → devops-engineer |
+| Docker 구성 | → devops-engineer |
+| 테스트 문서 | → documentation-specialist |
 
 **사용 예시**:
 ```
@@ -121,25 +242,41 @@ Agent: test-engineer
 Model: haiku  # 테스트 코드는 haiku로 충분
 ```
 
-**적합한 작업**:
-- 컴포넌트 테스트
-- API 테스트
-- 워크플로우 테스트
-- E2E 시나리오
-- 회귀 테스트
-
 ---
 
 ### 5. Documentation Specialist
+
 **파일**: `documentation-specialist.md`
 **전문 분야**: Technical Writing, API Documentation, Mermaid Diagrams
 
-**주요 책임**:
-- API 문서 작성
-- 아키텍처 문서
-- 사용자 가이드
-- README, CHANGELOG
-- Mermaid 다이어그램
+#### 역할 할당 (MUST Handle)
+
+이 에이전트는 다음 작업에 **반드시** 할당되어야 합니다:
+- API 문서 작성 및 업데이트
+- 아키텍처 문서 (ADRs)
+- 사용자 가이드 및 튜토리얼
+- README 및 CHANGELOG 관리
+- 코드 주석 및 docstring 개선
+- Mermaid 다이어그램 생성
+- OpenAPI/Swagger 명세
+- 컴포넌트 문서
+- 마이그레이션 가이드
+- 릴리스 노트
+
+#### 위임 규칙 (MUST NOT Handle)
+
+이 에이전트는 다음 작업을 처리하면 **안됩니다**. 적절한 에이전트에게 위임하세요:
+
+| 작업 유형 | 위임 대상 |
+|-----------|----------|
+| React 컴포넌트 코드 | → frontend-developer |
+| UI 구현 | → frontend-developer |
+| Backend API 코드 | → backend-developer |
+| 데이터베이스 스키마 | → backend-developer |
+| LangGraph 워크플로우 | → langgraph-specialist |
+| 테스트 코드 | → test-engineer |
+| CI/CD 파이프라인 | → devops-engineer |
+| Docker 설정 | → devops-engineer |
 
 **사용 예시**:
 ```
@@ -148,24 +285,41 @@ Agent: documentation-specialist
 Model: haiku
 ```
 
-**적합한 작업**:
-- API 엔드포인트 문서화
-- 아키텍처 다이어그램
-- 사용자 가이드 작성
-- 코드 주석 개선
-
 ---
 
 ### 6. DevOps Engineer
+
 **파일**: `devops-engineer.md`
 **전문 분야**: Docker, GitHub Actions, Vercel, CI/CD
 
-**주요 책임**:
-- Docker 컨테이너화
-- CI/CD 파이프라인
-- Vercel 배포 설정
-- 환경변수 관리
-- 모니터링 설정
+#### 역할 할당 (MUST Handle)
+
+이 에이전트는 다음 작업에 **반드시** 할당되어야 합니다:
+- Docker 컨테이너화 및 Docker Compose 설정
+- GitHub Actions CI/CD 파이프라인 구성
+- Vercel 배포 설정 및 최적화
+- 환경 변수 및 시크릿 관리
+- 모니터링 및 로깅 구성
+- 빌드 최적화 (속도, 캐싱)
+- Infrastructure as Code
+- SSL/HTTPS 구성
+- 성능 최적화 (CDN, 캐싱)
+- 보안 강화 (헤더, CSP)
+
+#### 위임 규칙 (MUST NOT Handle)
+
+이 에이전트는 다음 작업을 처리하면 **안됩니다**. 적절한 에이전트에게 위임하세요:
+
+| 작업 유형 | 위임 대상 |
+|-----------|----------|
+| React 컴포넌트 | → frontend-developer |
+| UI/UX 구현 | → frontend-developer |
+| Backend API 로직 | → backend-developer |
+| 데이터베이스 스키마 | → backend-developer |
+| LangGraph 워크플로우 | → langgraph-specialist |
+| 테스트 코드 작성 | → test-engineer |
+| API 문서 | → documentation-specialist |
+| README 컨텐츠 | → documentation-specialist |
 
 **사용 예시**:
 ```
@@ -173,13 +327,6 @@ Task: "Setup GitHub Actions workflow for running tests and deploying to Vercel o
 Agent: devops-engineer
 Model: sonnet
 ```
-
-**적합한 작업**:
-- CI/CD 구성
-- 배포 자동화
-- Docker 설정
-- 환경 설정
-- 모니터링 통합
 
 ---
 
@@ -226,25 +373,6 @@ Main Claude → backend-developer → frontend-developer → test-engineer → d
    Plan        API endpoint        UI component        Test cases        API docs
 ```
 
-**Example Code**:
-```javascript
-// Main Claude internal logic (conceptual)
-const tasks = [
-  { agent: 'backend-developer', task: 'Create journal entry API in Supabase' },
-  { agent: 'frontend-developer', task: 'Create JournalEntry component' },
-  { agent: 'test-engineer', task: 'Write tests for journal feature' },
-  { agent: 'documentation-specialist', task: 'Document journal API' }
-];
-
-for (const { agent, task } of tasks) {
-  await Task({
-    subagent_type: agent,
-    prompt: task,
-    model: 'sonnet'
-  });
-}
-```
-
 ### Pattern 3: Parallel Agent Execution
 
 독립적인 작업들을 병렬로 실행하는 패턴입니다.
@@ -258,60 +386,6 @@ Main Claude
      └─→ devops-engineer (Setup CI/CD, deployment)
 
 모두 완료 후 결과 취합
-```
-
-**SuperClaude 사용 예시**:
-```
-// 병렬 실행 명령 (SuperClaude)
-User: "에이전트들을 병렬로 실행해줘: 테스트 실행, 문서 업데이트, CI/CD 설정"
-
-Main Claude will send single message with multiple Task tool calls:
-- Task(test-engineer, "Run comprehensive test suite")
-- Task(documentation-specialist, "Update README and CHANGELOG")
-- Task(devops-engineer, "Setup GitHub Actions CI/CD")
-```
-
-### Pattern 4: Review & Iterate
-
-에이전트가 작업을 수행하고, 다른 에이전트가 리뷰하는 패턴입니다.
-
-```
-frontend-developer → test-engineer (review & add tests)
-      ↓                      ↓
-   Component             Test results
-      ↓                      ↓
-      └──────→ 필요시 재작업 ←──────┘
-```
-
-### Pattern 5: Coordinated Feature Development
-
-완전한 기능을 여러 에이전트가 협력하여 개발하는 패턴입니다.
-
-```
-Feature: "Hidden Spot Discovery with Image Generation"
-
-1. langgraph-specialist
-   - Design workflow (search → recommend → generate image)
-
-2. backend-developer
-   - Implement Supabase schema
-   - Create MCP server for spot search
-
-3. frontend-developer
-   - Build SpotDiscovery component
-   - Integrate with backend API
-
-4. test-engineer
-   - Unit tests for workflow nodes
-   - E2E test for full feature
-
-5. documentation-specialist
-   - API documentation
-   - User guide
-
-6. devops-engineer
-   - Add to CI/CD pipeline
-   - Performance monitoring
 ```
 
 ---
@@ -334,9 +408,14 @@ Agent: frontend-developer
 
 ### 2. 적절한 모델 선택
 
-- **Haiku**: 단순 반복 작업 (테스트 작성, 문서 업데이트)
-- **Sonnet**: 일반적인 개발 작업 (컴포넌트 구현, API 개발)
-- **Opus**: 복잡한 아키텍처 설계 (LangGraph 워크플로우, 시스템 설계)
+| 작업 유형 | 모델 | 설명 |
+|-----------|------|------|
+| 컴포넌트 생성 | sonnet | 빠른 작업 |
+| Supabase 스키마 | sonnet | 일반 개발 |
+| LangGraph 워크플로우 | sonnet/opus | 복잡한 설계 |
+| 단위 테스트 | haiku | 반복 작업 |
+| API 문서 | haiku | 문서화 |
+| CI/CD 설정 | sonnet | 인프라 |
 
 ### 3. 컨텍스트 제공
 
@@ -355,21 +434,7 @@ Style: Vintage aesthetic matching Film Log concept"
 Agent: frontend-developer
 ```
 
-### 4. 에이전트 간 의존성 관리
-
-순차적 작업이 필요한 경우 명확히 하세요:
-
-```
-// Step 1
-Task: "Create Supabase schema for hidden_spots table"
-Agent: backend-developer
-
-// Wait for completion, then Step 2
-Task: "Create TypeScript types from the hidden_spots Supabase schema"
-Agent: frontend-developer
-```
-
-### 5. 결과 검증
+### 4. 결과 검증
 
 에이전트 작업 후 항상 결과를 확인하세요:
 
@@ -420,113 +485,25 @@ Good: 순차 실행
 
 ---
 
-## 📊 Performance Tips
+## 📊 Quick Reference
 
-### 1. 적절한 병렬화
-
-독립적인 작업은 병렬로 실행:
-
-```bash
-# 병렬 가능한 작업들
-- Frontend 컴포넌트 A 개발
-- Frontend 컴포넌트 B 개발
-- Backend API 엔드포인트 구현
-- 문서 작성
-
-→ 모두 동시에 Task tool로 실행
-```
-
-### 2. 모델 선택 최적화
-
-| 작업 복잡도 | 모델 | 예상 시간 | 비용 |
-|------------|------|----------|------|
-| 단순 반복 | Haiku | ~30s | $ |
-| 일반 개발 | Sonnet | ~60s | $$ |
-| 복잡한 설계 | Opus | ~90s | $$$ |
-
-### 3. Resume 기능 활용
-
-이전 에이전트 세션을 재개할 수 있습니다:
-
-```javascript
-// 첫 번째 호출
-const agentId1 = await Task({
-  subagent_type: 'frontend-developer',
-  prompt: 'Create VibeCard component'
-});
-
-// 나중에 같은 컨텍스트로 계속
-await Task({
-  subagent_type: 'frontend-developer',
-  prompt: 'Add animation to the VibeCard',
-  resume: agentId1  // 이전 컨텍스트 유지
-});
-```
-
----
-
-## 🎓 Learning Path
-
-### Beginner
-
-1. **Single Agent 사용 연습**
-   - 간단한 컴포넌트 생성
-   - 테스트 작성
-   - 문서 업데이트
-
-2. **적절한 에이전트 선택 연습**
-   - 각 에이전트의 전문 분야 이해
-   - 작업과 에이전트 매칭
-
-### Intermediate
-
-3. **Sequential Chain 구현**
-   - 여러 에이전트 순차 실행
-   - 의존성 관리
-   - 결과 검증
-
-4. **Parallel Execution**
-   - 병렬 가능한 작업 식별
-   - 병렬 실행 구현
-   - 결과 취합
-
-### Advanced
-
-5. **Complex Feature Development**
-   - 전체 기능을 에이전트 팀으로 개발
-   - 에이전트 간 협업 조율
-   - Review & Iterate 패턴 활용
-
-6. **Custom Agent 개발**
-   - 프로젝트 특화 에이전트 생성
-   - 새로운 전문 분야 추가
+| 작업 유형 | 에이전트 | 모델 |
+|-----------|---------|------|
+| 컴포넌트 생성 | frontend-developer | sonnet |
+| Supabase 스키마 | backend-developer | sonnet |
+| LangGraph 워크플로우 | langgraph-specialist | sonnet/opus |
+| 단위 테스트 | test-engineer | haiku |
+| API 문서 | documentation-specialist | haiku |
+| CI/CD 설정 | devops-engineer | sonnet |
 
 ---
 
 ## 📚 References
 
 - **Claude Code Documentation**: [claude.ai/claude-code](https://claude.ai/claude-code)
+- **에이전트 설정 파일**: `.claude/agents/` 디렉토리
 - **Task Tool Reference**: SuperClaude COMMANDS.md
 - **Multi-Agent Patterns**: SuperClaude ORCHESTRATOR.md
-
----
-
-## 🤝 Contributing
-
-새로운 Sub-Agent를 추가하려면:
-
-1. `.claude/agents/` 디렉토리에 `{agent-name}.md` 파일 생성
-2. 기존 에이전트 파일을 템플릿으로 사용
-3. 다음 섹션 포함:
-   - Role & Responsibilities
-   - Tools Available
-   - Expertise
-   - Work Pattern
-   - Example Usage
-   - Quality Standards
-   - Do Not (제외 사항)
-
-4. 이 README.md 업데이트 (Available Sub-Agents 섹션)
 
 ---
 
