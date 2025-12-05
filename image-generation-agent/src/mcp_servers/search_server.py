@@ -2,6 +2,9 @@
 import os
 from typing import Any
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import structlog
 from fastmcp import FastMCP
 from tavily import TavilyClient
@@ -128,4 +131,4 @@ async def search_visual_references(keywords: list[str], max_results: int = 3) ->
 
 if __name__ == "__main__":
     # MCP 서버 실행
-    mcp.run(transport="streamable_http", port=8050)
+    mcp.run(transport="streamable-http", port=8050)

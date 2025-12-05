@@ -2,6 +2,9 @@
 import os
 from typing import Any, Literal
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import structlog
 from fastmcp import FastMCP
 from openai import AsyncOpenAI
@@ -142,4 +145,4 @@ async def optimize_prompt_for_image(
 
 if __name__ == "__main__":
     # MCP 서버 실행
-    mcp.run(transport="streamable_http", port=8051)
+    mcp.run(transport="streamable-http", port=8051)

@@ -1,8 +1,19 @@
 """이미지 생성 Agent의 워크플로우 노드 구현"""
+import json
 import structlog
 from langchain_core.messages import HumanMessage, AIMessage
 
 from .state import ImageGenerationState
+
+
+def parse_tool_result(result):
+    """MCP 도구 결과를 파싱합니다. 문자열이면 JSON으로 파싱합니다."""
+    if isinstance(result, str):
+        try:
+            return json.loads(result)
+        except json.JSONDecodeError:
+            return {"raw": result}
+    return result
 
 logger = structlog.get_logger(__name__)
 
@@ -31,7 +42,8 @@ async def extract_keywords_node(
             raise ValueError("extract_keywords tool not found")
 
         # 키워드 추출 실행
-        result = await extract_tool.ainvoke({"user_prompt": user_prompt})
+        raw_result = await extract_tool.ainvoke({"user_prompt": user_prompt})
+        result = parse_tool_result(raw_result)
 
         keywords = result.get("keywords", [])
         confidence = result.get("confidence", 0.0)
@@ -83,10 +95,11 @@ async def optimize_prompt_node(
             raise ValueError("optimize_prompt_for_image tool not found")
 
         # 프롬프트 최적화 실행
-        result = await optimize_tool.ainvoke({
+        raw_result = await optimize_tool.ainvoke({
             "base_prompt": user_prompt,
             "keywords": keywords
         })
+        result = parse_tool_result(raw_result)
 
         optimized_prompt = result.get("optimized_prompt", user_prompt)
 
@@ -136,12 +149,13 @@ async def generate_image_node(
             raise ValueError("generate_image tool not found")
 
         # 이미지 생성 실행
-        result = await generate_tool.ainvoke({
+        raw_result = await generate_tool.ainvoke({
             "prompt": optimized_prompt,
             "size": "1024x1024",
             "quality": "standard",
             "style": "vivid"
         })
+        result = parse_tool_result(raw_result)
 
         image_url = result.get("url")
         metadata = result.get("metadata", {})

@@ -24,7 +24,7 @@ export default function ConceptPage() {
 
   const handleContinue = () => {
     if (localSelected) {
-      router.push('/destinations');
+      router.push('/generate');
     }
   };
 
@@ -94,7 +94,7 @@ export default function ConceptPage() {
             disabled={!localSelected}
             className="px-12"
           >
-            여행지 추천받기 →
+            여행 이미지 생성하기 →
           </Button>
           {!localSelected && (
             <p className="text-sm text-gray-500 mt-3">
