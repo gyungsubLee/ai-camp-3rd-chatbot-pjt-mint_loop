@@ -85,6 +85,30 @@ export function DestinationCard({ destination, index }: DestinationCardProps) {
                 {destination.description}
               </p>
 
+              {/* Local Vibe - 현지 분위기 */}
+              {destination.localVibe && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-100">
+                  <h4 className="text-sm font-medium text-amber-800 mb-2 flex items-center gap-2">
+                    <span>🌿</span> 현지 분위기
+                  </h4>
+                  <p className="text-sm text-amber-700 italic">
+                    &ldquo;{destination.localVibe}&rdquo;
+                  </p>
+                </div>
+              )}
+
+              {/* Why Hidden - 숨겨진 이유 */}
+              {destination.whyHidden && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                  <h4 className="text-sm font-medium text-purple-800 mb-2 flex items-center gap-2">
+                    <span>💎</span> 숨겨진 보석인 이유
+                  </h4>
+                  <p className="text-sm text-purple-700">
+                    {destination.whyHidden}
+                  </p>
+                </div>
+              )}
+
               {/* Match Reason */}
               <div className="bg-sepia-50 rounded-xl p-4 border border-sepia-100">
                 <h4 className="text-sm font-medium text-sepia-800 mb-2 flex items-center gap-2">
@@ -94,6 +118,94 @@ export function DestinationCard({ destination, index }: DestinationCardProps) {
                   {destination.matchReason}
                 </p>
               </div>
+
+              {/* Activities - 추천 액티비티 */}
+              {destination.activities && destination.activities.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-gray-800 flex items-center gap-2">
+                    <span>🎯</span> 이곳에서의 특별한 경험
+                  </h4>
+                  <div className="space-y-2">
+                    {destination.activities.map((activity, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white border border-cream-200 rounded-xl p-3 hover:border-sepia-200 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-sepia-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm">{idx === 0 ? '⭐' : idx === 1 ? '🌟' : '✨'}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h5 className="font-medium text-gray-900 text-sm">
+                              {activity.name}
+                            </h5>
+                            <p className="text-xs text-gray-600 mt-0.5">
+                              {activity.description}
+                            </p>
+                            {(activity.duration || activity.bestTime) && (
+                              <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                                {activity.duration && (
+                                  <span className="flex items-center gap-1">
+                                    <span>⏱️</span> {activity.duration}
+                                  </span>
+                                )}
+                                {activity.bestTime && (
+                                  <span className="flex items-center gap-1">
+                                    <span>🕐</span> {activity.bestTime}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {activity.localTip && (
+                              <div className="mt-2 p-2 bg-amber-50 rounded-lg">
+                                <p className="text-xs text-amber-700">
+                                  <span className="font-medium">💡 로컬 팁:</span> {activity.localTip}
+                                </p>
+                              </div>
+                            )}
+                            {activity.photoOpportunity && (
+                              <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                                <p className="text-xs text-blue-700">
+                                  <span className="font-medium">📷 포토 포인트:</span> {activity.photoOpportunity}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Story Prompt - 스토리 제안 */}
+              {destination.storyPrompt && (
+                <div className="bg-gradient-to-r from-rose-50 to-amber-50 rounded-xl p-4 border border-rose-100">
+                  <h4 className="text-sm font-medium text-rose-800 mb-2 flex items-center gap-2">
+                    <span>📖</span> 이곳에서 만들 당신의 스토리
+                  </h4>
+                  <p className="text-sm text-rose-700 leading-relaxed">
+                    {destination.storyPrompt}
+                  </p>
+                </div>
+              )}
+
+              {/* Photography Tips - 사진 촬영 팁 */}
+              {destination.photographyTips && destination.photographyTips.length > 0 && (
+                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-100">
+                  <h4 className="text-sm font-medium text-cyan-800 mb-2 flex items-center gap-2">
+                    <span>📸</span> 인생샷 촬영 팁
+                  </h4>
+                  <ul className="space-y-1.5">
+                    {destination.photographyTips.map((tip, idx) => (
+                      <li key={idx} className="text-xs text-cyan-700 flex items-start gap-2">
+                        <span className="text-cyan-500 mt-0.5">•</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Stats Grid */}
               <div className="grid grid-cols-3 gap-3">

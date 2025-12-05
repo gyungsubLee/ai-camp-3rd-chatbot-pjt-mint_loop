@@ -15,15 +15,20 @@ interface ImageGenerationFormProps {
     selectedFilm: string;
   }) => void;
   isLoading: boolean;
+  // Chat에서 전달받은 초기값
+  initialDestination?: string;
+  initialAdditionalPrompt?: string;
 }
 
 export function ImageGenerationForm({
   concept,
   onGenerate,
   isLoading,
+  initialDestination = '',
+  initialAdditionalPrompt = '',
 }: ImageGenerationFormProps) {
-  const [destination, setDestination] = useState('');
-  const [additionalPrompt, setAdditionalPrompt] = useState('');
+  const [destination, setDestination] = useState(initialDestination);
+  const [additionalPrompt, setAdditionalPrompt] = useState(initialAdditionalPrompt);
   const [selectedFilm, setSelectedFilm] = useState(concept.recommendedFilms[0]);
 
   const handleSubmit = (e: React.FormEvent) => {

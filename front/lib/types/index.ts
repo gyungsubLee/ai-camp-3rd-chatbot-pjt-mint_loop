@@ -5,6 +5,9 @@ export interface UserPreferences {
   duration?: 'short' | 'medium' | 'long';
   interests?: Interest[];
   concept?: Concept;
+  // Chat에서 수집한 여행 장면 정보
+  travelDestination?: string;  // 여행지 (예: "파리 몽마르트르")
+  travelScene?: string;        // 장면 설명 (예: "카페 테라스에서 책을 읽는 모습")
 }
 
 export type Interest =
@@ -23,6 +26,7 @@ export type ConversationStep =
   | 'aesthetic'
   | 'duration'
   | 'interests'
+  | 'destination'  // 새로운 단계: 여행 장면 설명 수집
   | 'complete';
 
 // Message Types
@@ -49,6 +53,22 @@ export interface Destination {
   tags?: string[];
   image?: string;
   thumbnail?: string;
+  // 숨겨진 로컬 스폿을 위한 새 필드
+  localVibe?: string;           // 현지 분위기 설명
+  activities?: Activity[];       // 추천 액티비티/경험
+  storyPrompt?: string;          // 이 장소에서의 스토리 제안
+  whyHidden?: string;            // 왜 숨겨진 명소인지
+  photographyTips?: string[];    // 사진 촬영 팁
+}
+
+// Activity/Experience 타입
+export interface Activity {
+  name: string;
+  description: string;
+  duration?: string;
+  bestTime?: string;
+  localTip?: string;
+  photoOpportunity?: string;
 }
 
 // Hidden Spot Types

@@ -1,92 +1,64 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useVibeStore } from '@/lib/store/useVibeStore';
 import { DestinationCard } from '@/components/destinations/DestinationCard';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Button } from '@/components/ui/Button';
 import { getConceptById } from '@/lib/constants/concepts';
 import type { Destination } from '@/lib/types';
-
-// Mock destinations data (replace with API call)
-const MOCK_DESTINATIONS: Destination[] = [
-  {
-    id: 'dest_1',
-    name: 'Cinque Terre 히든 트레일',
-    city: 'Cinque Terre',
-    country: 'Italy',
-    description:
-      '크루즈 관광객들이 모르는 숨겨진 하이킹 코스. 다섯 개의 알록달록한 절벽 마을을 연결하는 비밀 트레일에서 진정한 이탈리아 해안의 아름다움을 만나보세요.',
-    matchReason:
-      '로맨틱한 해안 절경과 빈티지 이탈리아 감성이 어우러져 필름 사진에 완벽합니다. 파스텔 컬러 건물과 드라마틱한 절벽이 멋진 배경을 제공합니다.',
-    bestTimeToVisit: '4월 말 - 6월 초 (봄꽃 시즌, 적은 관광객)',
-    photographyScore: 9,
-    transportAccessibility: 'moderate',
-    safetyRating: 9,
-    estimatedBudget: '$$',
-    tags: ['coastal', 'hiking', 'photography', 'authentic'],
-  },
-  {
-    id: 'dest_2',
-    name: 'Montmartre 예술가 거리',
-    city: 'Paris',
-    country: 'France',
-    description:
-      '피카소, 반 고흐, 툴루즈 로트렉이 살았던 역사적인 언덕 동네. 조약돌 거리, 숨겨진 안뜰, 현지 예술가들의 작업실이 있는 진정한 보헤미안의 영혼.',
-    matchReason:
-      '빈티지 미학과 예술적 감성에 완벽합니다. 1920년대 파리의 보헤미안 정신을 고스란히 간직한 시대를 초월한 매력이 있습니다.',
-    bestTimeToVisit: '9월 - 10월 (가을 색감, 여름 인파 이후)',
-    photographyScore: 10,
-    transportAccessibility: 'easy',
-    safetyRating: 8,
-    estimatedBudget: '$$$',
-    tags: ['urban', 'art', 'history', 'bohemian'],
-  },
-  {
-    id: 'dest_3',
-    name: 'Porto Ribeira 지구',
-    city: 'Porto',
-    country: 'Portugal',
-    description:
-      '다채로운 타일 파사드, 좁은 중세 거리, 전통 포트 와인 셀러가 있는 강변 동네. 느린 페이스의 진정한 포르투갈 라이프스타일.',
-    matchReason:
-      '로맨틱한 강변 풍경과 빈티지 건축물이 어우러집니다. 다른 유럽 도시보다 저렴하면서도 진정한 매력을 유지하고 있습니다.',
-    bestTimeToVisit: '5월 - 6월 (따뜻한 날씨, 성수기 전)',
-    photographyScore: 8,
-    transportAccessibility: 'easy',
-    safetyRating: 9,
-    estimatedBudget: '$',
-    tags: ['riverside', 'wine', 'architecture', 'affordable'],
-  },
-];
 
 export default function DestinationsPage() {
   const { selectedConcept, preferences, setDestinations, destinations } =
     useVibeStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const concept = selectedConcept ? getConceptById(selectedConcept) : null;
 
-  useEffect(() => {
-    // Simulate API call
-    const loadDestinations = async () => {
-      setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setDestinations(MOCK_DESTINATIONS);
-      setIsLoading(false);
-    };
+  // AI 기반 여행지 추천 API 호출
+  const loadDestinations = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
 
-    if (destinations.length === 0) {
-      loadDestinations();
-    } else {
+    try {
+      const response = await fetch('/api/recommendations/destinations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          preferences,
+          concept: selectedConcept,
+          travelScene: preferences.travelScene,
+          travelDestination: preferences.travelDestination,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success' && data.destinations) {
+        setDestinations(data.destinations);
+      } else {
+        throw new Error('Failed to get recommendations');
+      }
+    } catch (err) {
+      console.error('Failed to load destinations:', err);
+      setError('추천을 불러오는 데 실패했습니다. 다시 시도해주세요.');
+    } finally {
       setIsLoading(false);
     }
-  }, [destinations.length, setDestinations]);
+  }, [preferences, selectedConcept, setDestinations]);
 
-  const displayDestinations =
-    destinations.length > 0 ? destinations : MOCK_DESTINATIONS;
+  useEffect(() => {
+    // 항상 사용자 취향 기반 추천을 새로 불러옴
+    loadDestinations();
+  }, []);  // 최초 1회만 실행
+
+  const displayDestinations = destinations;
 
   return (
     <div className="min-h-screen bg-cream-50">
@@ -118,25 +90,58 @@ export default function DestinationsPage() {
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* Intro */}
+        {/* Intro - 사용자 취향 반영 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
           <h2 className="font-serif text-2xl md:text-3xl text-gray-900 mb-3">
-            당신의 Vibe에 맞는 여행지를 찾았어요! ✨
+            {preferences.travelScene
+              ? '당신의 꿈꾸는 여행을 위한 특별한 장소'
+              : '당신의 Vibe에 맞는 숨겨진 명소'}
           </h2>
+
+          {preferences.travelScene && (
+            <div className="bg-sepia-50 rounded-xl p-4 mb-4 text-left max-w-lg mx-auto border border-sepia-100">
+              <p className="text-sm text-sepia-600 mb-1">꿈꾸는 장면:</p>
+              <p className="text-sepia-800 font-medium italic">
+                &ldquo;{preferences.travelScene}&rdquo;
+              </p>
+            </div>
+          )}
+
           <p className="text-gray-600">
-            관광객들이 모르는 숨겨진 명소들로 가득한 3곳의 특별한 여행지입니다.
+            관광객들이 모르는 <strong>진짜 현지 감성</strong>을 가진 로컬 스폿.
+            <br />
+            인생샷과 나만의 스토리를 만들 수 있는 특별한 여행지예요.
           </p>
         </motion.div>
+
+        {/* 에러 상태 */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-center"
+          >
+            <p className="text-red-700 mb-3">{error}</p>
+            <Button onClick={loadDestinations} variant="secondary" size="sm">
+              다시 시도
+            </Button>
+          </motion.div>
+        )}
 
         {/* Destination Cards */}
         <div className="space-y-4">
           {isLoading ? (
             // Loading Skeletons
             <>
+              <div className="text-center mb-4">
+                <p className="text-sm text-sepia-600 animate-pulse">
+                  AI가 당신의 취향에 맞는 숨겨진 명소를 찾고 있어요...
+                </p>
+              </div>
               {[1, 2, 3].map((i) => (
                 <div key={i} className="bg-white rounded-2xl p-4 border border-cream-200">
                   <div className="flex items-center gap-4">
@@ -149,7 +154,7 @@ export default function DestinationsPage() {
                 </div>
               ))}
             </>
-          ) : (
+          ) : displayDestinations.length > 0 ? (
             displayDestinations.map((destination, index) => (
               <DestinationCard
                 key={destination.id}
@@ -157,6 +162,13 @@ export default function DestinationsPage() {
                 index={index}
               />
             ))
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">아직 추천된 여행지가 없어요</p>
+              <Button onClick={loadDestinations}>
+                여행지 추천받기
+              </Button>
+            </div>
           )}
         </div>
 

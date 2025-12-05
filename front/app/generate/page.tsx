@@ -154,11 +154,24 @@ export default function GeneratePage() {
           <h2 className="font-serif text-2xl md:text-3xl text-gray-900 mb-3">
             당신의 여행을 미리 만나보세요
           </h2>
-          <p className="text-gray-600 max-w-lg mx-auto">
-            여행지를 입력하면 <strong>{concept.nameKo}</strong> 감성의
-            {' '}<strong>{concept.recommendedFilms[0]}</strong> 필름으로 촬영한 듯한
-            여행 사진을 생성해 드려요.
-          </p>
+          {preferences.travelScene ? (
+            <div className="space-y-2">
+              <p className="text-gray-600 max-w-lg mx-auto">
+                대화에서 말씀하신 <strong>&ldquo;{preferences.travelScene}&rdquo;</strong>를
+                <br />
+                <strong>{concept.nameKo}</strong> 감성으로 그려드릴게요!
+              </p>
+              <p className="text-sm text-sepia-600">
+                아래에서 내용을 수정하거나 바로 생성할 수 있어요.
+              </p>
+            </div>
+          ) : (
+            <p className="text-gray-600 max-w-lg mx-auto">
+              여행지를 입력하면 <strong>{concept.nameKo}</strong> 감성의
+              {' '}<strong>{concept.recommendedFilms[0]}</strong> 필름으로 촬영한 듯한
+              여행 사진을 생성해 드려요.
+            </p>
+          )}
         </motion.div>
 
         {/* 결과가 없을 때: 입력 폼 표시 */}
@@ -167,6 +180,8 @@ export default function GeneratePage() {
             concept={concept}
             onGenerate={handleGenerate}
             isLoading={isLoading}
+            initialDestination={preferences.travelDestination || ''}
+            initialAdditionalPrompt={preferences.travelScene || ''}
           />
         )}
 

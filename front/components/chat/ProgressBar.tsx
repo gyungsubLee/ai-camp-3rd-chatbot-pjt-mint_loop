@@ -14,6 +14,7 @@ const STEPS: ConversationStep[] = [
   'aesthetic',
   'duration',
   'interests',
+  'destination',
   'complete',
 ];
 
@@ -23,6 +24,7 @@ const STEP_LABELS: Record<ConversationStep, string> = {
   aesthetic: '미학',
   duration: '기간',
   interests: '관심사',
+  destination: '장면',
   complete: '완료',
 };
 

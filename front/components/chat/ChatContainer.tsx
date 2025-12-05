@@ -36,6 +36,12 @@ const QUICK_REPLIES: Partial<Record<ConversationStep, { label: string; value: st
     { label: '예술', value: 'art' },
     { label: '역사', value: 'history' },
   ],
+  destination: [
+    { label: '파리 카페 거리', value: '파리 몽마르트르 카페 테라스에서 책을 읽는 모습' },
+    { label: '제주 해변', value: '제주도 협재 해변에서 석양을 바라보는 모습' },
+    { label: '교토 골목', value: '교토 기온 거리의 전통 찻집에서 차를 마시는 모습' },
+    { label: '직접 입력', value: '' },
+  ],
 };
 
 // Initial greeting message
@@ -151,20 +157,53 @@ export function ChatContainer() {
             if (interests.length === 0) interests.push('photography');
 
             updatePreferences({ interests });
-            setPreferences({ interests });
+
+            reply = `좋아요! ${interests.join(', ')}에 관심이 있으시군요! 📸
+
+이제 마지막으로 **꿈꾸는 여행 장면**을 알려주세요.
+
+예를 들어:
+- "파리 몽마르트르 카페에서 책을 읽는 모습"
+- "제주도 해변에서 석양을 바라보는 순간"
+- "교토 골목길에서 기모노를 입고 산책하는 모습"
+
+구체적일수록 더 멋진 여행 이미지를 만들어 드릴 수 있어요!`;
+            nextStep = 'destination';
+            break;
+
+          case 'destination': {
+            // 사용자가 입력한 여행 장면 저장
+            const travelScene = content.trim();
+
+            // 장소와 장면을 분리 (간단한 파싱)
+            let travelDestination = travelScene;
+            if (travelScene.includes('에서')) {
+              travelDestination = travelScene.split('에서')[0].trim();
+            } else if (travelScene.includes('의')) {
+              travelDestination = travelScene.split('의')[0].trim();
+            }
+
+            // store에 저장된 preferences 가져오기
+            const currentPrefs = useChatStore.getState().preferences;
+
+            updatePreferences({ travelDestination, travelScene });
+            setPreferences({ ...currentPrefs, travelDestination, travelScene });
 
             reply = `완벽해요! 🎉
+
+**"${travelScene}"**
+
+정말 멋진 여행 장면이에요! 이 감성을 담아서 이미지를 만들어 드릴게요.
 
 당신의 여행 Vibe 프로필이 완성되었어요:
 - **무드**: 감성적이고 특별한
 - **스타일**: 빈티지 & 필름 감성
-- **관심사**: ${interests.join(', ')}
+- **꿈꾸는 장면**: ${travelScene}
 
-이제 당신에게 딱 맞는 **숨겨진 여행지**를 찾아볼게요! ✈️
-
-다음 단계에서 **3가지 컨셉** 중 하나를 선택해주세요.`;
+다음 단계에서 **3가지 컨셉** 중 하나를 선택하면, 바로 이미지를 생성해 드릴게요! ✈️`;
             nextStep = 'complete';
             break;
+          }
 
           default:
             reply = '알겠습니다! 계속해서 이야기해주세요.';
