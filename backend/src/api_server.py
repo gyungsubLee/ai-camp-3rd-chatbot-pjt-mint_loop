@@ -5,12 +5,13 @@ MCP 서버 없이도 독립적으로 동작합니다.
 """
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Literal
 
 import structlog
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 # .env 파일 로드 (상위 디렉토리에서 검색)
@@ -28,6 +29,11 @@ def find_and_load_dotenv():
 find_and_load_dotenv()
 
 from .providers import get_provider, ImageGenerationParams
+from .recommendations import (
+    RecommendationRequest,
+    RecommendationResponse,
+    generate_recommendations,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -200,6 +206,15 @@ async def generate_image(request: GenerateRequest):
     except Exception as e:
         logger.error(f"Generate error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/recommendations/destinations", response_model=RecommendationResponse)
+async def get_destination_recommendations(request: RecommendationRequest):
+    """여행지 추천 엔드포인트
+
+    사용자의 선호도와 컨셉을 기반으로 AI가 숨겨진 여행지를 추천합니다.
+    """
+    return await generate_recommendations(request)
 
 
 if __name__ == "__main__":
