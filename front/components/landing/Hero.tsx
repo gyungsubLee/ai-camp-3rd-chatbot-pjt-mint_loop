@@ -1,24 +1,56 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 
+const slides = [
+  { src: '/img/1.avif', alt: 'Travel vibe 1' },
+  { src: '/img/2.png', alt: 'Travel vibe 2' },
+  { src: '/img/3.webp', alt: 'Travel vibe 3' },
+  { src: '/img/4.jpg', alt: 'Travel vibe 4' },
+];
+
 export function Hero() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % slides.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-cream-50">
-      {/* Background Image */}
+      {/* Background Image Slider */}
       <div className="absolute inset-0">
-        <Image
-          src="/img/Gemini_Generated_Image_tm9qwmtm9qwmtm9q.png"
-          alt="Travel vibe background"
-          fill
-          priority
-          className="object-cover"
-        />
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={currentIndex}
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '-100%', opacity: 0 }}
+            transition={{
+              duration: 0.8,
+              ease: [0.25, 0.1, 0.25, 1]
+            }}
+            className="absolute inset-0"
+          >
+            <Image
+              src={slides[currentIndex].src}
+              alt={slides[currentIndex].alt}
+              fill
+              priority
+              className="object-cover"
+            />
+          </motion.div>
+        </AnimatePresence>
         {/* Overlay for text readability */}
-        <div className="absolute inset-0 bg-cream-50/10" />
+        <div className="absolute inset-0 bg-black/30 z-10" />
       </div>
 
       {/* Content */}
