@@ -67,6 +67,7 @@ next-env.d.ts
 **/ENV/
 **/env/
 
+
 # Python Testing
 **/.pytest_cache/
 **/.coverage

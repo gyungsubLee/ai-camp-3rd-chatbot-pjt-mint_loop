@@ -26,7 +26,6 @@ export default function GeneratePage() {
     selectedConcept,
     preferences,
     tripKitProfile,
-    chatMessages,
     addGeneratedImage,
     setImageGenerationContext,
   } = useVibeStore();
@@ -40,7 +39,6 @@ export default function GeneratePage() {
     additionalPrompt: string;
     selectedFilm: string;
   } | null>(null);
-  const [showChatHistory, setShowChatHistory] = useState(false);
 
   // tripKitProfile에서 concept 가져오기 (우선) 또는 selectedConcept 사용
   const conceptId = tripKitProfile.conceptId || selectedConcept;
@@ -202,60 +200,6 @@ export default function GeneratePage() {
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* TripKit Profile Summary */}
-        {tripKitProfile.city && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 bg-white rounded-2xl border border-cream-200 shadow-sm"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-gray-900">대화에서 수집한 정보</h3>
-              <button
-                onClick={() => setShowChatHistory(!showChatHistory)}
-                className="text-sm text-sepia-600 hover:underline"
-              >
-                {showChatHistory ? '대화 숨기기' : '대화 보기'}
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div><span className="text-gray-500">도시:</span> {tripKitProfile.city}</div>
-              <div><span className="text-gray-500">장소:</span> {tripKitProfile.spotName}</div>
-              <div><span className="text-gray-500">장면:</span> {tripKitProfile.mainAction}</div>
-              <div><span className="text-gray-500">컨셉:</span> {tripKitProfile.conceptId}</div>
-              <div><span className="text-gray-500">의상:</span> {tripKitProfile.outfitStyle}</div>
-              <div><span className="text-gray-500">포즈:</span> {tripKitProfile.posePreference}</div>
-              <div><span className="text-gray-500">필름:</span> {tripKitProfile.filmType}</div>
-              <div><span className="text-gray-500">카메라:</span> {tripKitProfile.cameraModel}</div>
-            </div>
-
-            {/* Chat History */}
-            {showChatHistory && chatMessages.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-cream-200 max-h-64 overflow-y-auto">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">대화 기록</h4>
-                <div className="space-y-2">
-                  {chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`text-sm p-2 rounded ${
-                        msg.role === 'user'
-                          ? 'bg-sepia-50 text-right'
-                          : 'bg-gray-50 text-left'
-                      }`}
-                    >
-                      <span className="text-xs text-gray-400 block mb-1">
-                        {msg.role === 'user' ? '나' : 'Trip Kit'}
-                      </span>
-                      {msg.content.slice(0, 100)}
-                      {msg.content.length > 100 && '...'}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-
         {/* Intro */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -285,7 +229,7 @@ export default function GeneratePage() {
           )}
         </motion.div>
 
-        {/* 입력 폼 - 항상 표시 */}
+        {/* 입력 폼 - 항상 표시 (대화에서 수집한 정보 포함) */}
         <ImageGenerationForm
           concept={concept}
           onGenerate={handleGenerate}
@@ -293,6 +237,7 @@ export default function GeneratePage() {
           initialDestination={destination}
           initialAdditionalPrompt={mainAction}
           initialFilm={tripKitProfile.filmType}
+          tripKitProfile={tripKitProfile}
         />
 
         {/* 이전 생성 결과 미리보기 (모달 닫힌 후) */}

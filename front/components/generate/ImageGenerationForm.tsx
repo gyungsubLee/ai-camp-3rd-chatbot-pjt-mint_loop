@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import type { ConceptData } from '@/lib/constants/concepts';
+import type { TripKitProfile } from '@/lib/types';
 
 interface ImageGenerationFormProps {
   concept: ConceptData;
@@ -19,6 +20,8 @@ interface ImageGenerationFormProps {
   initialDestination?: string;
   initialAdditionalPrompt?: string;
   initialFilm?: string;
+  // 대화에서 수집한 전체 프로필
+  tripKitProfile?: Partial<TripKitProfile>;
 }
 
 export function ImageGenerationForm({
@@ -28,6 +31,7 @@ export function ImageGenerationForm({
   initialDestination = '',
   initialAdditionalPrompt = '',
   initialFilm,
+  tripKitProfile,
 }: ImageGenerationFormProps) {
   const [destination, setDestination] = useState(initialDestination);
   const [additionalPrompt, setAdditionalPrompt] = useState(initialAdditionalPrompt);
@@ -64,13 +68,67 @@ export function ImageGenerationForm({
       className="bg-white rounded-2xl border border-cream-200 p-6 shadow-sm"
       onSubmit={handleSubmit}
     >
-      {/* 컨셉 정보 표시 */}
+      {/* 컨셉 정보 및 대화에서 수집한 정보 통합 표시 */}
       <div className="mb-6 pb-6 border-b border-cream-100">
         <div className="flex items-center gap-3 mb-3">
           <Badge variant="primary">{concept.nameKo}</Badge>
           <span className="text-sm text-gray-500 italic">&ldquo;{concept.tagline}&rdquo;</span>
         </div>
-        <p className="text-sm text-gray-600">{concept.description}</p>
+        <p className="text-sm text-gray-600 mb-4">{concept.description}</p>
+
+        {/* 대화에서 수집한 정보 (tripKitProfile이 있을 때만 표시) */}
+        {tripKitProfile && (tripKitProfile.city || tripKitProfile.spotName || tripKitProfile.mainAction) && (
+          <div className="mt-4 pt-4 border-t border-cream-100">
+            <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <span className="text-sepia-500">✦</span>
+              대화에서 수집한 정보
+            </h4>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-cream-50 p-3 rounded-lg">
+              {tripKitProfile.city && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 min-w-[3rem]">도시:</span>
+                  <span className="text-gray-800">{tripKitProfile.city}</span>
+                </div>
+              )}
+              {tripKitProfile.spotName && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 min-w-[3rem]">장소:</span>
+                  <span className="text-gray-800">{tripKitProfile.spotName}</span>
+                </div>
+              )}
+              {tripKitProfile.mainAction && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <span className="text-gray-500 min-w-[3rem]">장면:</span>
+                  <span className="text-gray-800">{tripKitProfile.mainAction}</span>
+                </div>
+              )}
+              {tripKitProfile.outfitStyle && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 min-w-[3rem]">의상:</span>
+                  <span className="text-gray-800">{tripKitProfile.outfitStyle}</span>
+                </div>
+              )}
+              {tripKitProfile.posePreference && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 min-w-[3rem]">포즈:</span>
+                  <span className="text-gray-800">{tripKitProfile.posePreference}</span>
+                </div>
+              )}
+              {tripKitProfile.filmType && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 min-w-[3rem]">필름:</span>
+                  <span className="text-gray-800">{tripKitProfile.filmType}</span>
+                </div>
+              )}
+              {tripKitProfile.cameraModel && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 min-w-[3rem]">카메라:</span>
+                  <span className="text-gray-800">{tripKitProfile.cameraModel}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 여행지 입력 */}
@@ -119,11 +177,10 @@ export function ImageGenerationForm({
               type="button"
               onClick={() => setSelectedFilm(film)}
               disabled={isLoading}
-              className={`px-4 py-2 rounded-full text-sm transition-all ${
-                selectedFilm === film
+              className={`px-4 py-2 rounded-full text-sm transition-all ${selectedFilm === film
                   ? 'bg-sepia-500 text-white shadow-md'
                   : 'bg-cream-100 text-gray-700 hover:bg-cream-200'
-              }`}
+                }`}
             >
               {film}
             </button>
@@ -175,7 +232,7 @@ export function ImageGenerationForm({
 
       {isLoading && (
         <p className="text-center text-sm text-gray-500 mt-3">
-          DALL-E 3가 {concept.nameKo} 감성의 여행 사진을 만들고 있어요...
+          {concept.nameKo} 감성의 여행 사진을 만들고 있어요...
         </p>
       )}
     </motion.form>

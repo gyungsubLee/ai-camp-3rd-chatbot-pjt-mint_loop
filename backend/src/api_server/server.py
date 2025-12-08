@@ -170,6 +170,26 @@ FILM_RENDERING = {
     "Pentax": "Pentax vintage look with matte tones, warm shadows, noticeable grain, emotional softness",
 }
 
+# 번역용 시스템 프롬프트
+TRANSLATION_SYSTEM_PROMPT = """You are a professional translator specializing in travel and photography content.
+Translate the given Korean text to natural, descriptive English suitable for image generation prompts.
+
+Rules:
+1. Keep proper nouns (city names, brand names) in their commonly used English form
+2. Translate descriptive phrases naturally, preserving the artistic/emotional nuance
+3. If a location is in Korean, translate to its commonly known English name
+4. For clothing/outfit descriptions, use natural English fashion terminology
+5. For poses, describe them in clear, visual terms
+6. Return ONLY the translated text, no explanations
+
+Examples:
+- "제주도 한적한 바닷가" → "a quiet beach in Jeju Island"
+- "파도 소리 듣기" → "listening to the sound of waves"
+- "넉넉한 핏의 셔츠와 면바지" → "relaxed-fit shirt and cotton pants"
+- "물구나무 선 모습" → "handstand pose"
+- "카페에서 책 읽는 모습" → "reading a book at a cafe"
+"""
+
 
 class ChatContext(BaseModel):
     """대화에서 수집한 컨텍스트"""
@@ -299,14 +319,367 @@ class ChatResponse(BaseModel):
     error: Optional[str] = None
 
 
-def build_user_driven_prompt(request: GenerateRequest) -> str:
+# =============================================================================
+# 저작권 콘텐츠 필터링
+# =============================================================================
+
+# 저작권/상표 키워드 → 일반적 대체어 매핑
+COPYRIGHTED_KEYWORDS = {
+    # Disney 캐릭터
+    "토이스토리": "colorful animated character parade",
+    "toy story": "colorful animated character parade",
+    "우디": "cowboy character",
+    "버즈": "astronaut character",
+    "미키마우스": "cartoon mascot character",
+    "미키": "cartoon mascot",
+    "미니마우스": "cartoon mascot character",
+    "미니": "cartoon mascot",
+    "도날드덕": "cartoon duck character",
+    "도날드": "cartoon duck",
+    "엘사": "ice princess character",
+    "안나": "princess character",
+    "겨울왕국": "ice kingdom fantasy",
+    "frozen": "ice kingdom fantasy",
+    "라푼젤": "long-haired princess",
+    "신데렐라": "classic princess",
+    "백설공주": "classic princess",
+    "인어공주": "mermaid princess",
+    "모아나": "ocean princess",
+    "라이온킹": "lion adventure",
+    "심바": "lion cub",
+    "니모": "clownfish",
+    "도리": "blue fish",
+    "몬스터주식회사": "friendly monsters",
+    "설리": "blue furry monster",
+    "마이크": "green one-eyed monster",
+    "인크레더블": "superhero family",
+    "카스": "animated cars",
+    "카 영화": "animated cars movie",
+    "mcqueen": "racing car",
+    "맥퀸": "racing car",
+    "피노키오": "wooden puppet boy",
+    "덤보": "flying elephant",
+    "밤비": "baby deer",
+    "알라딘": "arabian prince",
+    "자스민": "arabian princess",
+    "피터팬": "flying boy",
+    "팅커벨": "fairy character",
+    "101 dalmatians": "spotted puppies",
+    "101마리": "spotted puppies",
+    "달마시안": "dalmatian dogs",
+    "무파사": "lion king",
+    "스카": "lion villain",
+    "레미": "cooking rat",
+    "라따뚜이": "cooking rat",
+    "월-e": "robot character",
+    "wall-e": "robot character",
+    "업 영화": "balloon house adventure",
+    "픽사 업": "balloon house adventure",
+    "코코": "day of the dead celebration",
+    "인사이드아웃": "emotion characters",
+    "소울": "soul journey",
+    "루카": "sea monster boy",
+    "엔칸토": "magical family",
+
+    # Pixar
+    "픽사": "animated studio style",
+    "pixar": "animated studio style",
+
+    # Universal/Illumination
+    "미니언즈": "small yellow characters",
+    "minions": "small yellow characters",
+    "슈퍼배드": "villain and sidekicks",
+    "드래곤길들이기": "dragon rider adventure",
+    "히큽": "viking boy",
+    "트롤": "colorful troll characters",
+    "싱": "singing animal show",
+    "슈렉": "green ogre",
+    "shrek": "green ogre",
+    "피오나": "princess ogre",
+    "동키": "talking donkey",
+    "장화신은고양이": "swashbuckling cat",
+
+    # Warner Bros/DC
+    "해리포터": "wizard student",
+    "harry potter": "wizard student",
+    "호그와트": "magic school castle",
+    "hogwarts": "magic school castle",
+    "배트맨": "dark knight hero",
+    "batman": "dark knight hero",
+    "슈퍼맨": "flying superhero",
+    "superman": "flying superhero",
+    "원더우먼": "amazon warrior princess",
+    "wonder woman": "amazon warrior princess",
+    "조커": "clown villain",
+    "joker": "clown villain",
+    "톰과제리": "cat and mouse chase",
+    "tom and jerry": "cat and mouse chase",
+    "루니툰": "classic cartoon characters",
+    "looney tunes": "classic cartoon characters",
+    "벅스버니": "clever rabbit",
+    "bugs bunny": "clever rabbit",
+    "트위티": "small yellow bird",
+    "tweety": "small yellow bird",
+
+    # Marvel
+    "마블": "superhero universe",
+    "marvel": "superhero universe",
+    "아이언맨": "armored tech hero",
+    "iron man": "armored tech hero",
+    "스파이더맨": "web-slinging hero",
+    "spider-man": "web-slinging hero",
+    "토르": "thunder god hero",
+    "thor": "thunder god hero",
+    "캡틴아메리카": "shield-wielding hero",
+    "captain america": "shield-wielding hero",
+    "헐크": "green muscle hero",
+    "hulk": "green muscle hero",
+    "블랙팬서": "panther suit hero",
+    "black panther": "panther suit hero",
+    "어벤져스": "superhero team",
+    "avengers": "superhero team",
+    "타노스": "cosmic villain",
+    "thanos": "cosmic villain",
+    "로키": "trickster villain",
+    "loki": "trickster villain",
+    "가디언즈": "space hero team",
+    "guardians": "space hero team",
+    "그루트": "tree creature",
+    "groot": "tree creature",
+    "로켓": "raccoon character",
+    "rocket": "raccoon character",
+    "스타로드": "space adventurer",
+    "star-lord": "space adventurer",
+    "블랙위도우": "spy hero",
+    "black widow": "spy hero",
+    "호크아이": "archer hero",
+    "hawkeye": "archer hero",
+    "스칼렛위치": "magic hero",
+    "scarlet witch": "magic hero",
+    "비전": "android hero",
+    "앤트맨": "shrinking hero",
+    "ant-man": "shrinking hero",
+    "닥터스트레인지": "sorcerer hero",
+    "doctor strange": "sorcerer hero",
+
+    # Nintendo
+    "마리오": "plumber video game character",
+    "mario": "plumber video game character",
+    "루이지": "green plumber character",
+    "luigi": "green plumber character",
+    "피카츄": "yellow electric mouse",
+    "pikachu": "yellow electric mouse",
+    "포켓몬": "pocket monsters",
+    "pokemon": "pocket monsters",
+    "젤다": "adventure game princess",
+    "zelda": "adventure game princess",
+    "링크": "adventure game hero",
+    "커비": "pink puffball character",
+    "kirby": "pink puffball character",
+    "동물의숲": "cute animal village",
+    "animal crossing": "cute animal village",
+
+    # Studio Ghibli
+    "지브리": "japanese animation style",
+    "ghibli": "japanese animation style",
+    "토토로": "forest spirit creature",
+    "totoro": "forest spirit creature",
+    "치히로": "spirited away girl",
+    "하울": "wizard character",
+    "소피": "cursed girl",
+    "가오나시": "masked spirit",
+    "no-face": "masked spirit",
+    "포뇨": "fish girl",
+    "ponyo": "fish girl",
+    "나우시카": "warrior princess",
+    "나시카": "warrior princess",
+    "모노노케": "forest princess",
+
+    # Sanrio
+    "헬로키티": "cute cat character",
+    "hello kitty": "cute cat character",
+    "키티": "cute cat",
+    "마이멜로디": "cute bunny character",
+    "시나모롤": "cute puppy character",
+    "폼폼푸린": "cute pudding dog",
+    "쿠로미": "cute black bunny",
+
+    # 테마파크 관련 (저작권이 아닌 실제 장소)
+    "디즈니랜드": "theme park",
+    "disneyland": "theme park",
+    "디즈니월드": "theme park resort",
+    "disney world": "theme park resort",
+    "유니버셜스튜디오": "movie theme park",
+    "universal studios": "movie theme park",
+    "레고랜드": "block theme park",
+    "legoland": "block theme park",
+}
+
+
+def filter_copyrighted_content(text: str) -> tuple[str, list[str]]:
+    """저작권 콘텐츠를 필터링하고 대체어로 변환합니다.
+
+    Args:
+        text: 원본 텍스트
+
+    Returns:
+        (필터링된 텍스트, 필터링된 키워드 리스트)
+    """
+    if not text:
+        return text, []
+
+    filtered_text = text.lower()
+    original_text = text
+    filtered_keywords = []
+
+    for keyword, replacement in COPYRIGHTED_KEYWORDS.items():
+        keyword_lower = keyword.lower()
+        if keyword_lower in filtered_text:
+            filtered_keywords.append(keyword)
+            # 대소문자 무시하고 모두 대체
+            import re
+            pattern = re.compile(re.escape(keyword), re.IGNORECASE)
+            original_text = pattern.sub(replacement, original_text)
+            filtered_text = original_text.lower()
+
+    return original_text, filtered_keywords
+
+
+async def translate_to_english(text: str, gemini_provider: GeminiLLMProvider) -> str:
+    """한국어 텍스트를 영어로 번역합니다.
+
+    Args:
+        text: 번역할 텍스트 (한국어 또는 혼합)
+        gemini_provider: Gemini LLM Provider 인스턴스
+
+    Returns:
+        영어로 번역된 텍스트
+    """
+    if not text or not text.strip():
+        return text
+
+    # 이미 영어인지 간단히 체크 (한글 문자가 없으면 그대로 반환)
+    import re
+    if not re.search(r'[가-힣]', text):
+        return text
+
+    try:
+        params = LLMGenerationParams(
+            prompt=f"Translate to English: {text}",
+            system_prompt=TRANSLATION_SYSTEM_PROMPT,
+            temperature=0.3,  # 번역은 낮은 temperature로
+            response_format="text"
+        )
+
+        result = await gemini_provider.generate(params)
+
+        if result.success and result.content:
+            translated = result.content.strip()
+            # 불필요한 따옴표 제거
+            if translated.startswith('"') and translated.endswith('"'):
+                translated = translated[1:-1]
+            return translated
+        else:
+            logger.warning(f"Translation failed, using original: {text[:50]}...")
+            return text
+    except Exception as e:
+        logger.warning(f"Translation error: {e}, using original text")
+        return text
+
+
+async def translate_request_fields(request: GenerateRequest, gemini_provider: GeminiLLMProvider) -> dict:
+    """GenerateRequest의 한국어 필드들을 영어로 번역합니다.
+
+    Returns:
+        번역된 필드들을 담은 딕셔너리
+    """
+    # 번역이 필요한 필드들 수집
+    fields_to_translate = {}
+
+    # destination
+    if request.destination:
+        fields_to_translate['destination'] = request.destination
+
+    # additionalPrompt (사용자 입력 장면 설명)
+    if request.additionalPrompt:
+        fields_to_translate['additionalPrompt'] = request.additionalPrompt
+
+    # outfitStyle
+    if request.outfitStyle:
+        fields_to_translate['outfitStyle'] = request.outfitStyle
+
+    # chatContext 필드들
+    if request.chatContext:
+        if request.chatContext.city:
+            fields_to_translate['city'] = request.chatContext.city
+        if request.chatContext.spotName:
+            fields_to_translate['spotName'] = request.chatContext.spotName
+        if request.chatContext.mainAction:
+            fields_to_translate['mainAction'] = request.chatContext.mainAction
+        if request.chatContext.outfitStyle:
+            fields_to_translate['chatOutfitStyle'] = request.chatContext.outfitStyle
+        if request.chatContext.posePreference:
+            fields_to_translate['posePreference'] = request.chatContext.posePreference
+
+    # 한국어가 포함된 필드만 번역
+    import re
+    korean_fields = {k: v for k, v in fields_to_translate.items() if re.search(r'[가-힣]', v)}
+
+    if not korean_fields:
+        return {}  # 번역할 것 없음
+
+    # 모든 필드를 하나의 프롬프트로 합쳐서 번역 (API 호출 최소화)
+    combined_text = "\n".join([f"[{k}]: {v}" for k, v in korean_fields.items()])
+
+    try:
+        params = LLMGenerationParams(
+            prompt=f"""Translate each labeled Korean text to English. Keep the labels and format.
+
+{combined_text}
+
+Return in the same format with English translations.""",
+            system_prompt=TRANSLATION_SYSTEM_PROMPT,
+            temperature=0.3,
+            response_format="text"
+        )
+
+        result = await gemini_provider.generate(params)
+
+        if result.success and result.content:
+            # 응답 파싱
+            translated = {}
+            for line in result.content.strip().split('\n'):
+                line = line.strip()
+                if line.startswith('[') and ']: ' in line:
+                    key_end = line.index(']')
+                    key = line[1:key_end]
+                    value = line[key_end + 3:].strip()
+                    translated[key] = value
+
+            logger.info(f"Translated {len(translated)} fields to English")
+            return translated
+        else:
+            logger.warning("Batch translation failed")
+            return {}
+    except Exception as e:
+        logger.warning(f"Batch translation error: {e}")
+        return {}
+
+
+def build_user_driven_prompt(request: GenerateRequest, translated_fields: dict = None) -> str:
     """사용자 입력과 대화 컨텍스트를 종합하여 프롬프트를 생성합니다.
 
     대화에서 수집한 정보(chatContext)와 사용자 입력(additionalPrompt)을
     모두 활용하여 풍부한 이미지를 생성합니다.
+
+    Args:
+        request: 이미지 생성 요청
+        translated_fields: 번역된 필드들 (한국어 → 영어)
     """
-    # 1. 장소 정보
-    location = request.destination
+    translated = translated_fields or {}
+
+    # 1. 장소 정보 (번역된 값 우선)
+    location = translated.get('destination', request.destination)
 
     # 2. 컨셉 분위기
     concept_vibe = CONCEPT_VIBES.get(request.concept, "atmospheric travel moment")
@@ -316,8 +689,8 @@ def build_user_driven_prompt(request: GenerateRequest) -> str:
     if not film_style:
         film_style = f"shot on {request.filmStock} film with characteristic analog tones"
 
-    # 4. 의상 스타일 (기본값)
-    outfit = request.outfitStyle if request.outfitStyle else "stylish travel outfit"
+    # 4. 의상 스타일 (번역된 값 우선)
+    outfit = translated.get('outfitStyle', request.outfitStyle) if request.outfitStyle else "stylish travel outfit"
 
     # 5. 대화에서 수집한 컨텍스트 (chatContext)
     chat_context = request.chatContext
@@ -325,29 +698,34 @@ def build_user_driven_prompt(request: GenerateRequest) -> str:
     # 전체 대화 요약(혹은 로그)
     conversation_summary = getattr(request, "conversationSummary", "") or ""
 
-    # 기본값 설정
-    city = ""
-    spot_name = ""
-    main_action = ""
-    chat_outfit = ""
-    pose_detail = ""
+    # 기본값 설정 (번역된 값 우선)
+    city = translated.get('city', '')
+    spot_name = translated.get('spotName', '')
+    main_action = translated.get('mainAction', '')
+    chat_outfit = translated.get('chatOutfitStyle', '')
+    pose_detail = translated.get('posePreference', '')
     film_type = ""
     camera_model = ""
 
     if chat_context:
-        city = chat_context.city or ""
-        spot_name = chat_context.spotName or ""
-        main_action = chat_context.mainAction or ""
-        chat_outfit = chat_context.outfitStyle or ""
-        pose_detail = chat_context.posePreference or ""
+        if not city:
+            city = chat_context.city or ""
+        if not spot_name:
+            spot_name = chat_context.spotName or ""
+        if not main_action:
+            main_action = chat_context.mainAction or ""
+        if not chat_outfit:
+            chat_outfit = chat_context.outfitStyle or ""
+        if not pose_detail:
+            pose_detail = chat_context.posePreference or ""
         film_type = chat_context.filmType or ""
         camera_model = chat_context.cameraModel or ""
 
     # 의상은 chatContext 우선
     final_outfit = chat_outfit if chat_outfit else outfit
 
-    # 추가 프롬프트가 있으면 main_action과 합침
-    user_scene = request.additionalPrompt.strip() if request.additionalPrompt else ""
+    # 추가 프롬프트 (번역된 값 우선)
+    user_scene = translated.get('additionalPrompt', request.additionalPrompt.strip() if request.additionalPrompt else "")
     if user_scene and main_action and user_scene != main_action:
         scene_description = f"{main_action}. {user_scene}"
     elif main_action:
@@ -359,7 +737,7 @@ def build_user_driven_prompt(request: GenerateRequest) -> str:
 
     if chat_context and (main_action or spot_name or pose_detail):
         location_detail = location
-        if spot_name and spot_name not in location:
+        if spot_name and spot_name.lower() not in location.lower():
             location_detail = f"{location}, specifically at {spot_name}"
 
         camera_aesthetic = (
@@ -368,60 +746,37 @@ def build_user_driven_prompt(request: GenerateRequest) -> str:
             "Classic analog film camera aesthetic"
         )
 
-        film_detail = f"{film_type} ({request.filmStock})" if film_type else request.filmStock
+        # 필름 정보: chatContext의 filmType을 우선 사용, 없으면 filmStock 사용
+        if film_type and film_type != request.filmStock:
+            film_detail = film_type
+        elif film_type:
+            film_detail = film_type
+        else:
+            film_detail = request.filmStock
 
-        prompt = f"""Create a highly detailed cinematic travel photograph based on this carefully crafted scene:
+        # 자연스러운 영어 프롬프트 (마커 없이)
+        prompt = f"""A highly detailed cinematic travel photograph.
 
-=== SCENE DESCRIPTION (FOLLOW EXACTLY) ===
-Location: {location_detail}
-Action/Moment: {scene_description if scene_description else 'A peaceful moment of travel'}
+A person at {location_detail}, {scene_description if scene_description else 'enjoying a peaceful moment of travel'}.
 
-=== PERSON DETAILS (VERY IMPORTANT) ===
-- Outfit: {final_outfit}
-- Pose: {pose_detail if pose_detail else 'Natural, candid pose fitting the scene'}
-- Expression: Authentic, genuine emotion matching the moment
-- Body: Realistic proportions, natural positioning
+The person is wearing {final_outfit}, {pose_detail if pose_detail else 'in a natural, candid pose'}. Their expression shows authentic, genuine emotion matching the moment. Realistic body proportions and natural positioning.
 
-=== PHOTOGRAPHY STYLE ===
-- Film: {film_detail}
-- Film rendering: {film_style}
-- Camera: {camera_aesthetic}
-- Mood: {concept_vibe}
+Photography style: {film_detail} film with {film_style}. {camera_aesthetic}. The mood is {concept_vibe}.
 
-=== TECHNICAL DETAILS ===
-- Composition: Cinematic rule of thirds, thoughtful framing
-- Lighting: Golden hour or soft natural light
-- Depth: Shallow depth of field with gentle bokeh on background
-- Grain: Authentic film grain characteristic of {request.filmStock}
-- Color: Warm, nostalgic tones typical of analog photography
-"""
+Technical details: Cinematic rule of thirds composition with thoughtful framing. Golden hour or soft natural light. Shallow depth of field with gentle bokeh on background. Authentic film grain characteristic of {request.filmStock}. Warm, nostalgic color tones typical of analog photography."""
+
     else:
-        prompt = f"""Create a cinematic travel photograph at {location}.
+        prompt = f"""A cinematic travel photograph at {location}.
 
-Scene: A traveler enjoying a quiet moment at {location}, captured in a candid, natural way.
+A traveler enjoying a quiet moment at {location}, captured in a candid, natural way. Wearing {final_outfit}, in a natural, relaxed pose with an authentic travel moment expression.
 
-Person details:
-- Wearing {final_outfit}
-- Natural, relaxed pose
-- Authentic travel moment expression
-
-Visual style:
-- {film_style}
-- {concept_vibe}
-- Soft film grain, warm nostalgic tones
-- Shallow depth of field
-- Beautiful natural lighting
-- Cinematic framing
-"""
+Visual style: {film_style}. {concept_vibe}. Soft film grain with warm nostalgic tones. Shallow depth of field. Beautiful natural lighting. Cinematic framing."""
 
     if conversation_summary:
         prompt += f"""
 
-=== DESIGN NOTES FROM CHAT (CRITICAL) ===
-The following points come directly from the previous conversation with the user.
-Respect these preferences when imagining the scene:
-{conversation_summary}
-"""
+Additional design notes from user conversation - respect these preferences:
+{conversation_summary}"""
 
     return prompt
 
@@ -468,6 +823,8 @@ async def generate_image(request: GenerateRequest):
     """이미지 생성 엔드포인트
 
     사용자 입력(additionalPrompt)을 최우선으로 반영하여 이미지를 생성합니다.
+    한국어는 자동으로 영어로 번역됩니다.
+    저작권 콘텐츠는 자동으로 필터링됩니다.
     """
     try:
         logger.info(
@@ -478,10 +835,26 @@ async def generate_image(request: GenerateRequest):
             user_scene=request.additionalPrompt[:100] if request.additionalPrompt else "None"
         )
 
-        # 사용자 중심 프롬프트 생성
-        travel_prompt = build_user_driven_prompt(request)
+        # 한국어 필드들을 영어로 번역
+        translated_fields = await translate_request_fields(request, gemini_llm_provider)
+        if translated_fields:
+            logger.info(f"Translated fields: {list(translated_fields.keys())}")
 
-        logger.info(f"Built prompt (first 200 chars): {travel_prompt[:200]}...")
+        # 사용자 중심 프롬프트 생성 (번역된 값 전달)
+        travel_prompt = build_user_driven_prompt(request, translated_fields)
+
+        # 저작권 콘텐츠 필터링
+        filtered_prompt, filtered_keywords = filter_copyrighted_content(travel_prompt)
+
+        if filtered_keywords:
+            logger.info(
+                "Copyrighted content filtered",
+                filtered_keywords=filtered_keywords,
+                original_length=len(travel_prompt),
+                filtered_length=len(filtered_prompt)
+            )
+
+        logger.info(f"Built prompt (first 200 chars): {filtered_prompt[:200]}...")
 
         # 키워드 추출
         keywords = [
@@ -500,9 +873,9 @@ async def generate_image(request: GenerateRequest):
         provider = get_provider("gemini", model=DEFAULT_IMAGE_MODEL)
         logger.info(f"Using provider: {provider.provider_name}, model: {DEFAULT_IMAGE_MODEL}")
 
-        # 이미지 생성 파라미터
+        # 이미지 생성 파라미터 (필터링된 프롬프트 사용)
         params = ImageGenerationParams(
-            prompt=travel_prompt,
+            prompt=filtered_prompt,
             size="1024x1024",
             quality="standard",
             style="natural"
@@ -514,33 +887,74 @@ async def generate_image(request: GenerateRequest):
         if result.success:
             logger.info("Image generated successfully")
 
+            metadata = {
+                "concept": request.concept,
+                "filmStock": request.filmStock,
+                "filmType": request.filmType,
+                "destination": request.destination,
+                "userScene": request.additionalPrompt,
+                "provider": result.provider,
+                "model": DEFAULT_IMAGE_MODEL,
+                "revised_prompt": result.revised_prompt,
+            }
+
+            # 필터링된 키워드가 있으면 메타데이터에 추가
+            if filtered_keywords:
+                metadata["filtered_copyrighted_content"] = filtered_keywords
+
             return GenerateResponse(
                 status="success",
                 imageUrl=result.url,
-                optimizedPrompt=travel_prompt,
+                optimizedPrompt=filtered_prompt,
                 extractedKeywords=keywords,
                 poseUsed=request.additionalPrompt if request.additionalPrompt else "auto-generated",
-                metadata={
-                    "concept": request.concept,
-                    "filmStock": request.filmStock,
-                    "filmType": request.filmType,
-                    "destination": request.destination,
-                    "userScene": request.additionalPrompt,
-                    "provider": result.provider,
-                    "model": DEFAULT_IMAGE_MODEL,
-                    "revised_prompt": result.revised_prompt,
-                }
+                metadata=metadata
             )
         else:
-            logger.error(f"Image generation failed: {result.error}")
+            error_msg = result.error or "Unknown error"
+            logger.error(f"Image generation failed: {error_msg}")
+
+            # 사용자 친화적 에러 메시지 변환
+            user_error = _convert_to_user_friendly_error(error_msg, filtered_keywords)
+
             return GenerateResponse(
                 status="error",
-                error=result.error or "Unknown error"
+                error=user_error
             )
 
     except Exception as e:
         logger.error(f"Generate error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _convert_to_user_friendly_error(error_msg: str, filtered_keywords: list[str]) -> str:
+    """기술적 에러 메시지를 사용자 친화적 메시지로 변환합니다."""
+    error_lower = error_msg.lower()
+
+    # Rate limit / Quota exceeded
+    if "429" in error_msg or "resource_exhausted" in error_lower or "quota" in error_lower:
+        return "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."
+
+    # Content policy / Safety filter
+    if "결과가 비어있습니다" in error_msg or "empty" in error_lower:
+        if filtered_keywords:
+            return f"요청하신 내용({', '.join(filtered_keywords[:3])})은 저작권 문제로 생성할 수 없습니다. 다른 내용으로 시도해 주세요."
+        return "요청하신 이미지를 생성할 수 없습니다. 다른 내용으로 시도해 주세요."
+
+    # Safety/content policy explicit
+    if "safety" in error_lower or "content_policy" in error_lower or "blocked" in error_lower:
+        return "요청하신 이미지를 생성할 수 없습니다. 다른 내용으로 시도해 주세요."
+
+    # Authentication
+    if "401" in error_msg or "unauthorized" in error_lower or "invalid" in error_lower:
+        return "이미지 생성 서비스 연결에 실패했습니다. 잠시 후 다시 시도해 주세요."
+
+    # Network errors
+    if "connection" in error_lower or "timeout" in error_lower or "network" in error_lower:
+        return "서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요."
+
+    # Default
+    return "이미지 생성 중 오류가 발생했습니다. 다시 시도해 주세요."
 
 
 @app.post("/recommendations/destinations", response_model=RecommendationResponse)

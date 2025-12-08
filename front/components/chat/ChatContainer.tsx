@@ -265,14 +265,14 @@ export function ChatContainer() {
         // 거부된 항목 업데이트 (누적)
         if (data.rejectedItems) {
           setRejectedItems(prev => ({
-            cities: [...new Set([...prev.cities, ...(data.rejectedItems?.cities || [])])],
-            spots: [...new Set([...prev.spots, ...(data.rejectedItems?.spots || [])])],
-            actions: [...new Set([...prev.actions, ...(data.rejectedItems?.actions || [])])],
-            concepts: [...new Set([...prev.concepts, ...(data.rejectedItems?.concepts || [])])],
-            outfits: [...new Set([...prev.outfits, ...(data.rejectedItems?.outfits || [])])],
-            poses: [...new Set([...prev.poses, ...(data.rejectedItems?.poses || [])])],
-            films: [...new Set([...prev.films, ...(data.rejectedItems?.films || [])])],
-            cameras: [...new Set([...prev.cameras, ...(data.rejectedItems?.cameras || [])])],
+            cities: Array.from(new Set([...prev.cities, ...(data.rejectedItems?.cities || [])])),
+            spots: Array.from(new Set([...prev.spots, ...(data.rejectedItems?.spots || [])])),
+            actions: Array.from(new Set([...prev.actions, ...(data.rejectedItems?.actions || [])])),
+            concepts: Array.from(new Set([...prev.concepts, ...(data.rejectedItems?.concepts || [])])),
+            outfits: Array.from(new Set([...prev.outfits, ...(data.rejectedItems?.outfits || [])])),
+            poses: Array.from(new Set([...prev.poses, ...(data.rejectedItems?.poses || [])])),
+            films: Array.from(new Set([...prev.films, ...(data.rejectedItems?.films || [])])),
+            cameras: Array.from(new Set([...prev.cameras, ...(data.rejectedItems?.cameras || [])])),
           }));
         }
 
