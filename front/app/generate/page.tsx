@@ -68,9 +68,13 @@ export default function GeneratePage() {
     setError(null);
     setResult(null);
 
-    // tripKitProfile 데이터 우선 사용
+    // tripKitProfile 데이터 우선 사용 (대화에서 수집한 정보)
     const outfitStyle = tripKitProfile.outfitStyle || concept.outfitStyle;
     const posePreference = tripKitProfile.posePreference || '';
+    const filmType = tripKitProfile.filmType || concept.filmType;
+    const cameraModel = tripKitProfile.cameraModel || '';
+    const mainActionText = tripKitProfile.mainAction || '';
+    const spotName = tripKitProfile.spotName || '';
 
     try {
       const response = await fetch('/api/generate', {
@@ -82,10 +86,20 @@ export default function GeneratePage() {
           destination: formData.destination,
           concept: concept.id,
           filmStock: formData.selectedFilm,
-          filmType: concept.filmType,
+          filmType: filmType,
           filmStyleDescription: concept.filmStyleDescription,
           outfitStyle: outfitStyle,
-          additionalPrompt: formData.additionalPrompt + (posePreference ? `, ${posePreference}` : ''),
+          additionalPrompt: formData.additionalPrompt,
+          // 대화에서 수집한 전체 컨텍스트 (모든 정보 포함)
+          chatContext: {
+            city: tripKitProfile.city,
+            spotName: spotName,
+            mainAction: mainActionText,
+            outfitStyle: outfitStyle,
+            posePreference: posePreference,
+            filmType: filmType,
+            cameraModel: cameraModel,
+          },
         }),
       });
 

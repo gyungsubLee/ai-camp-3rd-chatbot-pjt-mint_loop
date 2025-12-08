@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface ChatContext {
+  city?: string;
+  spotName?: string;
+  mainAction?: string;
+  outfitStyle?: string;
+  posePreference?: string;
+  filmType?: string;
+  cameraModel?: string;
+}
+
 interface GenerateRequest {
   destination: string;
   concept: string;
@@ -8,6 +18,7 @@ interface GenerateRequest {
   filmStyleDescription: string;
   outfitStyle: string;
   additionalPrompt?: string;
+  chatContext?: ChatContext;
 }
 
 // Python 백엔드 API 서버 URL
@@ -23,7 +34,8 @@ export async function POST(request: NextRequest) {
       filmType,
       filmStyleDescription,
       outfitStyle,
-      additionalPrompt
+      additionalPrompt,
+      chatContext
     } = body;
 
     // 입력 검증
@@ -55,6 +67,8 @@ export async function POST(request: NextRequest) {
         filmStyleDescription: filmStyleDescription || '',
         outfitStyle: outfitStyle || '',
         additionalPrompt: additionalPrompt || '',
+        // 대화에서 수집한 컨텍스트 전달
+        chatContext: chatContext || null,
       }),
     });
 

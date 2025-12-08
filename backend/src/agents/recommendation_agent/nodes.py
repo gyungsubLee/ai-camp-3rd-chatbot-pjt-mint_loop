@@ -16,8 +16,13 @@ from ...providers import get_llm_provider, LLMGenerationParams
 try:
     import googlemaps
     _GOOGLE_MAPS_CREDENTIAL = os.getenv("GOOGLE_MAP_API_KEY")
-    if _GOOGLE_MAPS_CREDENTIAL:
-        gmaps_client = googlemaps.Client(key=_GOOGLE_MAPS_CREDENTIAL)
+    # 플레이스홀더 값이나 빈 값은 무시
+    if _GOOGLE_MAPS_CREDENTIAL and not _GOOGLE_MAPS_CREDENTIAL.startswith("your-"):
+        try:
+            gmaps_client = googlemaps.Client(key=_GOOGLE_MAPS_CREDENTIAL)
+        except ValueError:
+            # Invalid API key
+            gmaps_client = None
     else:
         gmaps_client = None
 except ImportError:
