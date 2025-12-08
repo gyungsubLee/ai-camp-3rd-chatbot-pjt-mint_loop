@@ -10,6 +10,30 @@ export interface UserPreferences {
   travelScene?: string;        // 장면 설명 (예: "카페 테라스에서 책을 읽는 모습")
 }
 
+// TripKit 챗봇이 수집하는 이미지 생성 프로필
+export interface TripKitProfile {
+  spotName?: string;        // 장소명 (예: "몽마르트르 언덕")
+  city?: string;            // 도시 (예: "파리")
+  conceptId?: Concept;      // 컨셉 ID (flaneur, filmlog, midnight 등)
+  mainAction?: string;      // 주요 행동 (예: "카페 테라스에서 책 읽기")
+  outfitStyle?: string;     // 의상 스타일 (예: "베이지 트렌치코트, 베레모")
+  posePreference?: string;  // 포즈 선호 (예: "자연스럽게 걷는 뒷모습")
+  filmType?: string;        // 필름 타입 (예: "Kodak Portra 400")
+  cameraModel?: string;     // 카메라 모델 (예: "Contax T2")
+}
+
+// TripKit 챗봇 대화 단계
+export type TripKitStep =
+  | 'greeting'      // 인사 & 여행지 질문
+  | 'spot'          // 구체적인 장소 확인
+  | 'action'        // 어떤 장면/행동을 원하는지
+  | 'concept'       // 컨셉 선택
+  | 'outfit'        // 의상 스타일
+  | 'pose'          // 포즈 선호
+  | 'film'          // 필름 & 카메라
+  | 'confirm'       // 최종 확인
+  | 'complete';     // 완료
+
 export type Interest =
   | 'photography'
   | 'food'

@@ -18,6 +18,7 @@ interface ImageGenerationFormProps {
   // Chat에서 전달받은 초기값
   initialDestination?: string;
   initialAdditionalPrompt?: string;
+  initialFilm?: string;
 }
 
 export function ImageGenerationForm({
@@ -26,10 +27,15 @@ export function ImageGenerationForm({
   isLoading,
   initialDestination = '',
   initialAdditionalPrompt = '',
+  initialFilm,
 }: ImageGenerationFormProps) {
   const [destination, setDestination] = useState(initialDestination);
   const [additionalPrompt, setAdditionalPrompt] = useState(initialAdditionalPrompt);
-  const [selectedFilm, setSelectedFilm] = useState(concept.recommendedFilms[0]);
+  // initialFilm이 concept.recommendedFilms에 포함되어 있으면 사용, 아니면 첫 번째 필름 사용
+  const defaultFilm = initialFilm && concept.recommendedFilms.includes(initialFilm)
+    ? initialFilm
+    : concept.recommendedFilms[0];
+  const [selectedFilm, setSelectedFilm] = useState(defaultFilm);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

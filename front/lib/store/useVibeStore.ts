@@ -6,6 +6,9 @@ import type {
   HiddenSpot,
   StylingRecommendation,
   Concept,
+  TripKitProfile,
+  TripKitStep,
+  Message,
 } from '@/lib/types';
 
 interface GeneratedImage {
@@ -29,6 +32,11 @@ interface VibeState {
 
   // User Preferences
   preferences: UserPreferences;
+
+  // TripKit 챗봇 상태
+  tripKitProfile: TripKitProfile;
+  tripKitStep: TripKitStep;
+  chatMessages: Message[];
 
   // Selected Items
   selectedConcept: Concept | null;
@@ -58,12 +66,21 @@ interface VibeState {
   addGeneratedImage: (spotId: string, imageUrl: string) => void;
   getGeneratedImage: (spotId: string) => string | undefined;
   setImageGenerationContext: (context: Omit<ImageGenerationContext, 'generatedAt'>) => void;
+  // TripKit 챗봇 액션
+  updateTripKitProfile: (data: Partial<TripKitProfile>) => void;
+  setTripKitStep: (step: TripKitStep) => void;
+  addChatMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
+  setChatMessages: (messages: Message[]) => void;
+  resetTripKitChat: () => void;
   resetSession: () => void;
 }
 
 const initialState = {
   sessionId: null,
   preferences: {} as UserPreferences,
+  tripKitProfile: {} as TripKitProfile,
+  tripKitStep: 'greeting' as TripKitStep,
+  chatMessages: [] as Message[],
   selectedConcept: null,
   selectedDestination: null,
   selectedSpots: [],
@@ -137,6 +154,35 @@ export const useVibeStore = create<VibeState>()(
           },
         }),
 
+      // TripKit 챗봇 액션
+      updateTripKitProfile: (data) =>
+        set((state) => ({
+          tripKitProfile: { ...state.tripKitProfile, ...data },
+        })),
+
+      setTripKitStep: (step) => set({ tripKitStep: step }),
+
+      addChatMessage: (message) =>
+        set((state) => ({
+          chatMessages: [
+            ...state.chatMessages,
+            {
+              ...message,
+              id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+              timestamp: Date.now(),
+            },
+          ],
+        })),
+
+      setChatMessages: (messages) => set({ chatMessages: messages }),
+
+      resetTripKitChat: () =>
+        set({
+          tripKitProfile: {} as TripKitProfile,
+          tripKitStep: 'greeting' as TripKitStep,
+          chatMessages: [],
+        }),
+
       resetSession: () => set(initialState),
     }),
     {
@@ -144,10 +190,12 @@ export const useVibeStore = create<VibeState>()(
       partialize: (state) => ({
         sessionId: state.sessionId,
         preferences: state.preferences,
+        // tripKitProfile만 저장 (generate 페이지에서 사용)
+        // chatMessages, tripKitStep은 저장하지 않음 (새로고침 시 새 대화 시작)
+        tripKitProfile: state.tripKitProfile,
         selectedConcept: state.selectedConcept,
         selectedDestination: state.selectedDestination,
         imageGenerationContext: state.imageGenerationContext,
-        // generatedImages: state.generatedImages,
       }),
     }
   )

@@ -58,7 +58,7 @@ export function ConceptCard({ concept, isSelected, onSelect }: ConceptCardProps)
           </h3>
           <p className="text-xs text-gray-400 mb-1">{concept.name}</p>
           <p className="text-sepia-600 font-medium text-sm truncate">
-            "{concept.tagline}"
+            &ldquo;{concept.tagline}&rdquo;
           </p>
         </div>
 

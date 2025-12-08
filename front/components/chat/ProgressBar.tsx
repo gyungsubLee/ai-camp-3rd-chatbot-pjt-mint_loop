@@ -1,30 +1,34 @@
 'use client';
 
 import { cn } from '@/lib/utils/cn';
-import type { ConversationStep } from '@/lib/types';
+import type { TripKitStep } from '@/lib/types';
 
 interface ProgressBarProps {
-  currentStep: ConversationStep;
+  currentStep: TripKitStep;
   className?: string;
 }
 
-const STEPS: ConversationStep[] = [
-  'init',
-  'mood',
-  'aesthetic',
-  'duration',
-  'interests',
-  'destination',
+const STEPS: TripKitStep[] = [
+  'greeting',
+  'spot',
+  'action',
+  'concept',
+  'outfit',
+  'pose',
+  'film',
+  'confirm',
   'complete',
 ];
 
-const STEP_LABELS: Record<ConversationStep, string> = {
-  init: '시작',
-  mood: '무드',
-  aesthetic: '미학',
-  duration: '기간',
-  interests: '관심사',
-  destination: '장면',
+const STEP_LABELS: Record<TripKitStep, string> = {
+  greeting: '도시',
+  spot: '장소',
+  action: '장면',
+  concept: '컨셉',
+  outfit: '의상',
+  pose: '포즈',
+  film: '필름',
+  confirm: '카메라',
   complete: '완료',
 };
 

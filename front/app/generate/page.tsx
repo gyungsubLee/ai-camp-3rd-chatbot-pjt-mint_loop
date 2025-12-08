@@ -22,7 +22,14 @@ type ModalStatus = 'loading' | 'success' | 'error';
 
 export default function GeneratePage() {
   const router = useRouter();
-  const { selectedConcept, preferences, addGeneratedImage, setImageGenerationContext } = useVibeStore();
+  const {
+    selectedConcept,
+    preferences,
+    tripKitProfile,
+    chatMessages,
+    addGeneratedImage,
+    setImageGenerationContext,
+  } = useVibeStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState<ModalStatus>('loading');
@@ -33,15 +40,19 @@ export default function GeneratePage() {
     additionalPrompt: string;
     selectedFilm: string;
   } | null>(null);
+  const [showChatHistory, setShowChatHistory] = useState(false);
 
-  const concept = selectedConcept ? getConceptById(selectedConcept) : null;
+  // tripKitProfile에서 concept 가져오기 (우선) 또는 selectedConcept 사용
+  const conceptId = tripKitProfile.conceptId || selectedConcept;
+  const concept = conceptId ? getConceptById(conceptId) : null;
 
-  // 컨셉이 선택되지 않은 경우 리다이렉트
+  // tripKitProfile 데이터가 없으면 chat 페이지로 리다이렉트
   useEffect(() => {
-    if (!selectedConcept) {
-      router.push('/concept');
+    const hasProfile = tripKitProfile.city && tripKitProfile.spotName;
+    if (!hasProfile && !selectedConcept) {
+      router.push('/chat');
     }
-  }, [selectedConcept, router]);
+  }, [tripKitProfile, selectedConcept, router]);
 
   const handleGenerate = async (formData: {
     destination: string;
@@ -57,6 +68,10 @@ export default function GeneratePage() {
     setError(null);
     setResult(null);
 
+    // tripKitProfile 데이터 우선 사용
+    const outfitStyle = tripKitProfile.outfitStyle || concept.outfitStyle;
+    const posePreference = tripKitProfile.posePreference || '';
+
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -69,8 +84,8 @@ export default function GeneratePage() {
           filmStock: formData.selectedFilm,
           filmType: concept.filmType,
           filmStyleDescription: concept.filmStyleDescription,
-          outfitStyle: concept.outfitStyle,
-          additionalPrompt: formData.additionalPrompt,
+          outfitStyle: outfitStyle,
+          additionalPrompt: formData.additionalPrompt + (posePreference ? `, ${posePreference}` : ''),
         }),
       });
 
@@ -126,13 +141,19 @@ export default function GeneratePage() {
     setIsModalOpen(false);
   };
 
+  // tripKitProfile 또는 preferences에서 데이터 가져오기
+  const destination = tripKitProfile.city && tripKitProfile.spotName
+    ? `${tripKitProfile.city} ${tripKitProfile.spotName}`
+    : preferences.travelDestination || '';
+  const mainAction = tripKitProfile.mainAction || preferences.travelScene || '';
+
   if (!concept) {
     return (
       <div className="min-h-screen bg-cream-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">컨셉을 먼저 선택해주세요</p>
-          <Link href="/concept" className="text-sepia-600 hover:underline">
-            컨셉 선택하러 가기 →
+          <p className="text-gray-600 mb-4">먼저 대화를 완료해주세요</p>
+          <Link href="/chat" className="text-sepia-600 hover:underline">
+            대화 시작하기 →
           </Link>
         </div>
       </div>
@@ -155,9 +176,9 @@ export default function GeneratePage() {
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="primary">{concept.nameKo}</Badge>
-              {preferences.mood && (
+              {tripKitProfile.filmType && (
                 <Badge variant="secondary" className="hidden sm:inline-flex">
-                  {preferences.mood}
+                  {tripKitProfile.filmType}
                 </Badge>
               )}
             </div>
@@ -167,6 +188,60 @@ export default function GeneratePage() {
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 py-8">
+        {/* TripKit Profile Summary */}
+        {tripKitProfile.city && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-white rounded-2xl border border-cream-200 shadow-sm"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-gray-900">대화에서 수집한 정보</h3>
+              <button
+                onClick={() => setShowChatHistory(!showChatHistory)}
+                className="text-sm text-sepia-600 hover:underline"
+              >
+                {showChatHistory ? '대화 숨기기' : '대화 보기'}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><span className="text-gray-500">도시:</span> {tripKitProfile.city}</div>
+              <div><span className="text-gray-500">장소:</span> {tripKitProfile.spotName}</div>
+              <div><span className="text-gray-500">장면:</span> {tripKitProfile.mainAction}</div>
+              <div><span className="text-gray-500">컨셉:</span> {tripKitProfile.conceptId}</div>
+              <div><span className="text-gray-500">의상:</span> {tripKitProfile.outfitStyle}</div>
+              <div><span className="text-gray-500">포즈:</span> {tripKitProfile.posePreference}</div>
+              <div><span className="text-gray-500">필름:</span> {tripKitProfile.filmType}</div>
+              <div><span className="text-gray-500">카메라:</span> {tripKitProfile.cameraModel}</div>
+            </div>
+
+            {/* Chat History */}
+            {showChatHistory && chatMessages.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-cream-200 max-h-64 overflow-y-auto">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">대화 기록</h4>
+                <div className="space-y-2">
+                  {chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`text-sm p-2 rounded ${
+                        msg.role === 'user'
+                          ? 'bg-sepia-50 text-right'
+                          : 'bg-gray-50 text-left'
+                      }`}
+                    >
+                      <span className="text-xs text-gray-400 block mb-1">
+                        {msg.role === 'user' ? '나' : 'Trip Kit'}
+                      </span>
+                      {msg.content.slice(0, 100)}
+                      {msg.content.length > 100 && '...'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
         {/* Intro */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -176,10 +251,10 @@ export default function GeneratePage() {
           <h2 className="font-serif text-2xl md:text-3xl text-gray-900 mb-3">
             당신의 여행을 미리 만나보세요
           </h2>
-          {preferences.travelScene ? (
+          {mainAction ? (
             <div className="space-y-2">
               <p className="text-gray-600 max-w-lg mx-auto">
-                대화에서 말씀하신 <strong>&ldquo;{preferences.travelScene}&rdquo;</strong>를
+                대화에서 말씀하신 <strong>&ldquo;{mainAction}&rdquo;</strong>를
                 <br />
                 <strong>{concept.nameKo}</strong> 감성으로 그려드릴게요!
               </p>
@@ -201,8 +276,9 @@ export default function GeneratePage() {
           concept={concept}
           onGenerate={handleGenerate}
           isLoading={isModalOpen && modalStatus === 'loading'}
-          initialDestination={preferences.travelDestination || ''}
-          initialAdditionalPrompt={preferences.travelScene || ''}
+          initialDestination={destination}
+          initialAdditionalPrompt={mainAction}
+          initialFilm={tripKitProfile.filmType}
         />
 
         {/* 이전 생성 결과 미리보기 (모달 닫힌 후) */}
@@ -246,10 +322,10 @@ export default function GeneratePage() {
           className="text-center mt-8"
         >
           <Link
-            href="/concept"
+            href="/chat"
             className="text-sm text-gray-500 hover:text-sepia-600 transition-colors"
           >
-            ← 컨셉 다시 선택하기
+            ← 대화 다시 시작하기
           </Link>
         </motion.div>
       </main>

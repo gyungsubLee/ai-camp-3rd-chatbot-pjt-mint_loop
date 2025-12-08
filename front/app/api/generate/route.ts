@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 interface GenerateRequest {
   destination: string;
-  concept: 'flaneur' | 'filmlog' | 'midnight';
+  concept: string;
   filmStock: string;
-  colorPalette: string[];
+  filmType: string;
+  filmStyleDescription: string;
   outfitStyle: string;
   additionalPrompt?: string;
 }
@@ -15,7 +16,15 @@ const AGENT_API_URL = process.env.AGENT_API_URL || 'http://localhost:8000';
 export async function POST(request: NextRequest) {
   try {
     const body: GenerateRequest = await request.json();
-    const { destination, concept, filmStock, colorPalette, outfitStyle, additionalPrompt } = body;
+    const {
+      destination,
+      concept,
+      filmStock,
+      filmType,
+      filmStyleDescription,
+      outfitStyle,
+      additionalPrompt
+    } = body;
 
     // 입력 검증
     if (!destination || !concept) {
@@ -25,7 +34,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[Generate API] Forwarding to Python backend:', { destination, concept, filmStock });
+    console.log('[Generate API] Forwarding to Python backend:', {
+      destination,
+      concept,
+      filmStock,
+      filmType
+    });
 
     // Python Agent API 호출
     const response = await fetch(`${AGENT_API_URL}/generate`, {
@@ -37,7 +51,8 @@ export async function POST(request: NextRequest) {
         destination,
         concept,
         filmStock,
-        colorPalette: colorPalette || [],
+        filmType: filmType || '',
+        filmStyleDescription: filmStyleDescription || '',
         outfitStyle: outfitStyle || '',
         additionalPrompt: additionalPrompt || '',
       }),
@@ -60,9 +75,11 @@ export async function POST(request: NextRequest) {
       imageUrl: data.imageUrl,
       optimizedPrompt: data.optimizedPrompt,
       extractedKeywords: data.extractedKeywords || [],
+      poseUsed: data.poseUsed || null,
       metadata: {
         concept,
         filmStock,
+        filmType,
         destination,
         generatedAt: new Date().toISOString(),
         ...(data.metadata || {}),
@@ -72,11 +89,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Generate API] Error:', error);
 
-    // 사용자 친화적 에러 메시지 (민감한 정보 제거)
+    // 사용자 친화적 에러 메시지
     const rawMessage = error instanceof Error ? error.message : '';
     let userMessage = '이미지 생성 중 오류가 발생했습니다. 다시 시도해 주세요.';
 
-    if (rawMessage.includes('API key') || rawMessage.includes('401') || rawMessage.includes('invalid_api_key')) {
+    if (rawMessage.includes('401') || rawMessage.includes('invalid')) {
       userMessage = '이미지 생성 서비스 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.';
     } else if (rawMessage.includes('ECONNREFUSED') || rawMessage.includes('fetch failed')) {
       userMessage = '서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.';
