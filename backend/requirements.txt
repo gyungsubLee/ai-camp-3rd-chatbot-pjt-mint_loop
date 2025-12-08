@@ -24,6 +24,9 @@ pillow>=10.0.0
 # 검색
 tavily-python>=0.3.0
 
+# Google Places API
+googlemaps>=4.10.0
+
 # HTTP 클라이언트
 httpx>=0.28.1
 httpx-sse>=0.4.1

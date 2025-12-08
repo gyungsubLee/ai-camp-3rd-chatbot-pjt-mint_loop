@@ -124,7 +124,7 @@ export const useVibeStore = create<VibeState>()(
         preferences: state.preferences,
         selectedConcept: state.selectedConcept,
         selectedDestination: state.selectedDestination,
-        generatedImages: state.generatedImages,
+        // generatedImages: state.generatedImages,
       }),
     }
   )
