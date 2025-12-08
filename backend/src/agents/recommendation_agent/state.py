@@ -12,6 +12,14 @@ class UserPreferences(TypedDict, total=False):
     interests: list[str]
 
 
+class ImageGenerationContext(TypedDict, total=False):
+    """이미지 생성 시 사용된 컨텍스트"""
+    destination: Optional[str]        # 사용자가 입력한 여행지
+    additionalPrompt: Optional[str]   # 추가 프롬프트/장면 설명
+    filmStock: Optional[str]          # 선택한 필름 스톡
+    outfitStyle: Optional[str]        # 의상 스타일
+
+
 class Activity(TypedDict, total=False):
     """액티비티 정보"""
     name: str
@@ -104,6 +112,7 @@ class RecommendationState(TypedDict):
     concept: Optional[str]
     travel_scene: Optional[str]
     travel_destination: Optional[str]
+    image_generation_context: Optional[ImageGenerationContext]  # 이미지 생성 컨텍스트
     llm_provider: Optional[str]  # LLM Provider 타입 ("openai", "gemini")
     model: Optional[str]  # 사용할 LLM 모델 (동적 설정)
 
@@ -127,6 +136,7 @@ class RecommendationInput(TypedDict):
     concept: Optional[str]
     travel_scene: Optional[str]
     travel_destination: Optional[str]
+    image_generation_context: Optional[ImageGenerationContext]
 
 
 class RecommendationOutput(TypedDict):

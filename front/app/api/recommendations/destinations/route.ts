@@ -4,11 +4,19 @@ import type { UserPreferences, Concept } from '@/lib/types';
 // Python 백엔드 API 서버 URL
 const AGENT_API_URL = process.env.AGENT_API_URL || 'http://localhost:8000';
 
+interface ImageGenerationContext {
+  destination: string;
+  additionalPrompt: string;
+  filmStock: string;
+  outfitStyle: string;
+}
+
 interface RecommendationRequest {
   preferences: UserPreferences;
   concept?: Concept;
   travelScene?: string;
   travelDestination?: string;
+  imageGenerationContext?: ImageGenerationContext | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -18,6 +26,8 @@ export async function POST(request: NextRequest) {
     console.log('[Destinations API] Forwarding to backend:', {
       mood: body.preferences.mood,
       concept: body.concept,
+      hasImageContext: !!body.imageGenerationContext,
+      imageDestination: body.imageGenerationContext?.destination,
     });
 
     // Python 백엔드 API 호출

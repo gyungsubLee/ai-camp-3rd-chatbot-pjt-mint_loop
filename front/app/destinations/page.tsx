@@ -32,7 +32,7 @@ function SkeletonCard() {
 }
 
 export default function DestinationsPage() {
-  const { selectedConcept, preferences, setDestinations, destinations } = useVibeStore();
+  const { selectedConcept, preferences, setDestinations, destinations, imageGenerationContext } = useVibeStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
@@ -55,6 +55,13 @@ export default function DestinationsPage() {
           concept: selectedConcept,
           travelScene: preferences.travelScene,
           travelDestination: preferences.travelDestination,
+          // 이미지 생성에서 사용한 컨텍스트 전달
+          imageGenerationContext: imageGenerationContext ? {
+            destination: imageGenerationContext.destination,
+            additionalPrompt: imageGenerationContext.additionalPrompt,
+            filmStock: imageGenerationContext.filmStock,
+            outfitStyle: imageGenerationContext.outfitStyle,
+          } : null,
         }),
       });
 
@@ -71,7 +78,7 @@ export default function DestinationsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [preferences, selectedConcept, setDestinations]);
+  }, [preferences, selectedConcept, setDestinations, imageGenerationContext]);
 
   useEffect(() => {
     loadDestinations();
@@ -167,8 +174,8 @@ export default function DestinationsPage() {
             </p>
           </motion.div>
 
-          {/* Travel Scene */}
-          {preferences.travelScene && (
+          {/* Travel Scene - imageGenerationContext 우선 사용 */}
+          {(imageGenerationContext || preferences.travelScene) && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -178,7 +185,11 @@ export default function DestinationsPage() {
               <p className="text-xs font-semibold text-sepia-600 uppercase tracking-wider mb-1">
                 꿈꾸는 장면
               </p>
-              <p className="text-gray-700 italic">&ldquo;{preferences.travelScene}&rdquo;</p>
+              <p className="text-gray-700 italic">
+                &ldquo;{imageGenerationContext
+                  ? `${imageGenerationContext.destination}${imageGenerationContext.additionalPrompt ? `에서 ${imageGenerationContext.additionalPrompt}` : ''}`
+                  : preferences.travelScene}&rdquo;
+              </p>
             </motion.div>
           )}
         </div>

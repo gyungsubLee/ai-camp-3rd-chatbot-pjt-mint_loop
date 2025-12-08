@@ -22,7 +22,7 @@ type ModalStatus = 'loading' | 'success' | 'error';
 
 export default function GeneratePage() {
   const router = useRouter();
-  const { selectedConcept, preferences, addGeneratedImage } = useVibeStore();
+  const { selectedConcept, preferences, addGeneratedImage, setImageGenerationContext } = useVibeStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState<ModalStatus>('loading');
@@ -92,6 +92,14 @@ export default function GeneratePage() {
 
       // Store에 생성된 이미지 저장
       addGeneratedImage(formData.destination, data.imageUrl);
+
+      // 이미지 생성 컨텍스트 저장 (destinations 추천에 활용)
+      setImageGenerationContext({
+        destination: formData.destination,
+        additionalPrompt: formData.additionalPrompt,
+        filmStock: formData.selectedFilm,
+        outfitStyle: concept.outfitStyle,
+      });
     } catch (err) {
       console.error('Generation error:', err);
       setError(

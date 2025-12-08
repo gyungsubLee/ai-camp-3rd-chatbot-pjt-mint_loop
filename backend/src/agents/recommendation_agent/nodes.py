@@ -9,7 +9,7 @@ import os
 import structlog
 from langchain_core.messages import AIMessage
 
-from .state import RecommendationState, Destination, PlaceDetails
+from .state import RecommendationState, Destination, PlaceDetails, ImageGenerationContext
 from ...providers import get_llm_provider, LLMGenerationParams
 
 # Google Maps 클라이언트 (Places API용)
@@ -65,6 +65,13 @@ async def analyze_preferences_node(state: RecommendationState) -> Recommendation
         mood_keyword = MOOD_KEYWORDS.get(mood, "") if mood else ""
         interests_str = ", ".join(preferences.get("interests", [])) if preferences.get("interests") else ""
 
+        # 이미지 생성 컨텍스트 추출
+        image_context = state.get("image_generation_context") or {}
+        image_destination = image_context.get("destination", "")
+        image_additional_prompt = image_context.get("additionalPrompt", "")
+        image_film_stock = image_context.get("filmStock", "")
+        image_outfit_style = image_context.get("outfitStyle", "")
+
         # 사용자 프로필 구성
         user_profile = {
             "mood": mood,
@@ -75,6 +82,11 @@ async def analyze_preferences_node(state: RecommendationState) -> Recommendation
             "interests": interests_str,
             "travel_scene": state.get("travel_scene"),
             "travel_destination": state.get("travel_destination"),
+            # 이미지 생성 컨텍스트 추가
+            "image_destination": image_destination,
+            "image_additional_prompt": image_additional_prompt,
+            "image_film_stock": image_film_stock,
+            "image_outfit_style": image_outfit_style,
         }
 
         logger.info(f"User profile analyzed: mood={mood}, concept={concept}")
@@ -125,6 +137,33 @@ async def build_prompt_node(state: RecommendationState) -> RecommendationState:
         travel_destination = user_profile.get("travel_destination")
         destination_line = f"- 관심 있는 지역: {travel_destination}" if travel_destination else ""
 
+        # 이미지 생성 컨텍스트 라인들
+        image_destination = user_profile.get("image_destination")
+        image_additional_prompt = user_profile.get("image_additional_prompt")
+        image_film_stock = user_profile.get("image_film_stock")
+        image_outfit_style = user_profile.get("image_outfit_style")
+
+        image_context_lines = []
+        if image_destination:
+            image_context_lines.append(f"- 이전에 미리보기 생성한 여행지: {image_destination}")
+        if image_additional_prompt:
+            image_context_lines.append(f"- 미리보기에서 묘사한 장면: {image_additional_prompt}")
+        if image_film_stock:
+            image_context_lines.append(f"- 선호하는 필름 스타일: {image_film_stock}")
+        if image_outfit_style:
+            image_context_lines.append(f"- 선호하는 의상 스타일: {image_outfit_style}")
+
+        image_context_section = "\n".join(image_context_lines) if image_context_lines else ""
+
+        # 이미지 미리보기 컨텍스트가 있으면 중요 참고 정보로 추가
+        image_context_intro = ""
+        if image_context_section:
+            image_context_intro = f"""
+[중요] 사용자가 이전에 생성한 이미지 미리보기 정보:
+{image_context_section}
+→ 이 정보를 반드시 참고하여 사용자가 관심 가진 지역과 비슷한 분위기의 여행지를 추천해주세요.
+"""
+
         user_prompt = f"""사용자 프로필:
 - 무드: {user_profile.get('mood') or '감성적인'} ({user_profile.get('mood_keywords', '')})
 - 미학적 취향: {user_profile.get('aesthetic') or '빈티지'}
@@ -132,7 +171,7 @@ async def build_prompt_node(state: RecommendationState) -> RecommendationState:
 - 선택한 컨셉: {user_profile.get('concept') or 'filmlog'} ({user_profile.get('concept_vibe', '')})
 - 꿈꾸는 여행 장면: {user_profile.get('travel_scene') or '특별한 순간을 기록하는 여행'}
 {destination_line}
-
+{image_context_intro}
 위 프로필을 바탕으로, 이 사용자에게 완벽하게 맞는 숨겨진 여행지 3곳을 추천해주세요.
 
 다음 JSON 형식으로 응답해주세요:

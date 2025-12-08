@@ -14,6 +14,15 @@ interface GeneratedImage {
   timestamp: number;
 }
 
+// 이미지 생성 시 사용된 컨텍스트 정보
+interface ImageGenerationContext {
+  destination: string;        // 사용자가 입력한 여행지 (예: "파리 몽마르트르 카페 테라스")
+  additionalPrompt: string;   // 추가 프롬프트/장면 설명
+  filmStock: string;          // 선택한 필름 스톡
+  outfitStyle: string;        // 의상 스타일
+  generatedAt: number;        // 생성 시점
+}
+
 interface VibeState {
   // Session
   sessionId: string | null;
@@ -34,6 +43,9 @@ interface VibeState {
   // Generated Images
   generatedImages: GeneratedImage[];
 
+  // Image Generation Context (이미지 생성 시 사용된 컨텍스트)
+  imageGenerationContext: ImageGenerationContext | null;
+
   // Actions
   setSessionId: (id: string) => void;
   setPreferences: (prefs: Partial<UserPreferences>) => void;
@@ -45,6 +57,7 @@ interface VibeState {
   setStyling: (styling: StylingRecommendation) => void;
   addGeneratedImage: (spotId: string, imageUrl: string) => void;
   getGeneratedImage: (spotId: string) => string | undefined;
+  setImageGenerationContext: (context: Omit<ImageGenerationContext, 'generatedAt'>) => void;
   resetSession: () => void;
 }
 
@@ -58,6 +71,7 @@ const initialState = {
   hiddenSpots: [],
   styling: null,
   generatedImages: [],
+  imageGenerationContext: null,
 };
 
 export const useVibeStore = create<VibeState>()(
@@ -115,6 +129,14 @@ export const useVibeStore = create<VibeState>()(
           ?.imageUrl;
       },
 
+      setImageGenerationContext: (context) =>
+        set({
+          imageGenerationContext: {
+            ...context,
+            generatedAt: Date.now(),
+          },
+        }),
+
       resetSession: () => set(initialState),
     }),
     {
@@ -124,6 +146,7 @@ export const useVibeStore = create<VibeState>()(
         preferences: state.preferences,
         selectedConcept: state.selectedConcept,
         selectedDestination: state.selectedDestination,
+        imageGenerationContext: state.imageGenerationContext,
         // generatedImages: state.generatedImages,
       }),
     }

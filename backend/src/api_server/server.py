@@ -35,11 +35,12 @@ from ..agents import RecommendationAgent
 logger = structlog.get_logger(__name__)
 
 # 모델 설정 (환경변수에서 가져오기)
-DEFAULT_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-2.5-flash")
 DEFAULT_IMAGE_MODEL = os.getenv("GEMINI_IMAGE_MODEL", "imagen-3.0-generate-001")
 
-# RecommendationAgent 인스턴스 (싱글톤)
-recommendation_agent = RecommendationAgent(model=DEFAULT_TEXT_MODEL)
+# RecommendationAgent 인스턴스 (싱글톤) - OpenAI GPT-4o 사용
+# 주의: Gemini 모델은 OpenAI provider와 호환되지 않음
+RECOMMENDATION_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
+recommendation_agent = RecommendationAgent(provider_type="openai", model=RECOMMENDATION_MODEL)
 
 # LLM Provider 인스턴스 (프롬프트 최적화용 - OpenAI GPT 사용)
 PROMPT_OPTIMIZATION_MODEL = "gpt-4o-mini"
@@ -91,12 +92,21 @@ class UserPreferences(BaseModel):
     interests: list[str] = []
 
 
+class ImageGenerationContext(BaseModel):
+    """이미지 생성 시 사용된 컨텍스트"""
+    destination: Optional[str] = None
+    additionalPrompt: Optional[str] = None
+    filmStock: Optional[str] = None
+    outfitStyle: Optional[str] = None
+
+
 class RecommendationRequest(BaseModel):
     """여행지 추천 요청"""
     preferences: UserPreferences
     concept: Optional[str] = None
     travelScene: Optional[str] = None
     travelDestination: Optional[str] = None
+    imageGenerationContext: Optional[ImageGenerationContext] = None
 
 
 class Activity(BaseModel):
@@ -361,7 +371,7 @@ async def health_check():
         "status": "healthy",
         "provider": provider,
         "models": {
-            "text": DEFAULT_TEXT_MODEL,
+            "text": RECOMMENDATION_MODEL,
             "image": DEFAULT_IMAGE_MODEL,
         }
     }
@@ -442,9 +452,24 @@ async def get_destination_recommendations(request: RecommendationRequest):
     AI가 숨겨진 여행지를 추천합니다.
     """
     try:
+        # 이미지 생성 컨텍스트 로깅
+        has_image_context = request.imageGenerationContext is not None
+        image_dest = request.imageGenerationContext.destination if has_image_context else None
+
         logger.info(
-            f"Recommendations request: mood={request.preferences.mood}, concept={request.concept}"
+            f"Recommendations request: mood={request.preferences.mood}, concept={request.concept}, "
+            f"hasImageContext={has_image_context}, imageDestination={image_dest}"
         )
+
+        # 이미지 생성 컨텍스트 구성
+        image_generation_context = None
+        if request.imageGenerationContext:
+            image_generation_context = {
+                "destination": request.imageGenerationContext.destination,
+                "additionalPrompt": request.imageGenerationContext.additionalPrompt,
+                "filmStock": request.imageGenerationContext.filmStock,
+                "outfitStyle": request.imageGenerationContext.outfitStyle,
+            }
 
         # Agent 입력 데이터 구성
         input_data = {
@@ -457,6 +482,7 @@ async def get_destination_recommendations(request: RecommendationRequest):
             "concept": request.concept,
             "travel_scene": request.travelScene,
             "travel_destination": request.travelDestination,
+            "image_generation_context": image_generation_context,
         }
 
         # Agent 실행

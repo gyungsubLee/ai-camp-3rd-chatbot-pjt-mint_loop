@@ -150,6 +150,7 @@ class RecommendationAgent:
                 "concept": input_data.get("concept"),
                 "travel_scene": input_data.get("travel_scene"),
                 "travel_destination": input_data.get("travel_destination"),
+                "image_generation_context": input_data.get("image_generation_context"),
                 "llm_provider": actual_provider,
                 "model": actual_model,
                 "user_profile": {},
