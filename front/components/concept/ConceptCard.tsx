@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Camera, Film } from 'lucide-react';
 import type { ConceptData } from '@/lib/constants/concepts';
 
 interface ConceptCardProps {
@@ -16,122 +17,115 @@ export function ConceptCard({ concept, isSelected, onSelect }: ConceptCardProps)
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
+      animate={{
+        scale: isSelected ? 0.95 : 1,
+        y: isSelected ? 0 : 0,
+      }}
+      whileHover={!isSelected ? { y: -6 } : {}}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       className={cn(
-        'relative rounded-2xl overflow-hidden border-2 transition-all duration-300 cursor-pointer',
+        'relative rounded-2xl overflow-hidden transition-shadow duration-300 cursor-pointer w-[300px] h-[480px] flex flex-col flex-shrink-0',
         isSelected
-          ? 'border-sepia-500 shadow-xl ring-4 ring-sepia-100'
-          : 'border-cream-200 hover:border-sepia-300 hover:shadow-lg'
+          ? 'ring-4 ring-sepia-400 shadow-2xl bg-sepia-50'
+          : 'shadow-lg hover:shadow-xl'
       )}
       onClick={onSelect}
     >
-      {/* Color Bar */}
-      <div
-        className="h-2"
-        style={{
-          background: `linear-gradient(90deg, ${concept.colorPalette[0]}, ${concept.colorPalette[1]}, ${concept.colorPalette[2]})`,
-        }}
-      />
+      {/* Film Type Header */}
+      <div className={cn(
+        'px-4 py-3 flex items-center justify-between flex-shrink-0',
+        isSelected ? 'bg-sepia-600' : 'bg-gray-900'
+      )}>
+        <div className="flex items-center gap-2">
+          <Film className={cn('w-4 h-4', isSelected ? 'text-white' : 'text-sepia-400')} />
+          <span className={cn('text-sm font-medium', isSelected ? 'text-white' : 'text-sepia-400')}>
+            {concept.filmType}
+          </span>
+        </div>
+        {isSelected && (
+          <span className="text-xs text-white font-medium bg-white/20 px-2 py-0.5 rounded-full">
+            ✓ 선택됨
+          </span>
+        )}
+      </div>
 
-      {/* Content */}
-      <div className="p-6 bg-white">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-serif text-2xl text-gray-900">
-                {concept.nameKo}
-              </h3>
-              {isSelected && (
-                <Badge variant="success" size="sm">
-                  ✓ 선택됨
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-gray-500">{concept.name}</p>
-          </div>
+      {/* Main Content */}
+      <div className={cn(
+        'flex-1 flex flex-col p-5 overflow-hidden',
+        isSelected ? 'bg-white' : 'bg-white'
+      )}>
+        {/* Title Section - Fixed Height */}
+        <div className="mb-3 pb-3 border-b border-cream-100 flex-shrink-0">
+          <h3 className="font-serif text-xl text-gray-900 mb-0.5 truncate">
+            {concept.nameKo}
+          </h3>
+          <p className="text-xs text-gray-400 mb-1">{concept.name}</p>
+          <p className="text-sepia-600 font-medium text-sm truncate">
+            "{concept.tagline}"
+          </p>
         </div>
 
-        {/* Tagline */}
-        <p className="text-sepia-600 font-medium italic mb-4">
-          &ldquo;{concept.tagline}&rdquo;
-        </p>
-
-        {/* Description */}
-        <p className="text-gray-600 text-sm leading-relaxed mb-5">
+        {/* Description - Fixed Height with line clamp */}
+        <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-2 flex-shrink-0">
           {concept.description}
         </p>
 
-        {/* Details Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-5">
-          <div>
-            <h4 className="text-xs text-gray-500 mb-2">추천 필름</h4>
-            <div className="flex flex-wrap gap-1">
-              {concept.recommendedFilms.map((film) => (
-                <Badge key={film} variant="secondary" size="sm">
-                  🎞️ {film.split(' ')[1]}
-                </Badge>
-              ))}
+        {/* Film & Camera Info - Fixed Height */}
+        <div className="space-y-2 mb-4 flex-shrink-0">
+          {/* Film */}
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-cream-100 flex items-center justify-center flex-shrink-0">
+              <Film className="w-3.5 h-3.5 text-sepia-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-700 truncate">
+                {concept.recommendedFilms[0]}
+              </p>
             </div>
           </div>
-          <div>
-            <h4 className="text-xs text-gray-500 mb-2">추천 카메라</h4>
-            <div className="flex flex-wrap gap-1">
-              {concept.cameraModels.slice(0, 2).map((camera) => (
-                <Badge key={camera} variant="secondary" size="sm">
-                  📷 {camera.split(' ')[0]}
-                </Badge>
-              ))}
+
+          {/* Camera */}
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-cream-100 flex items-center justify-center flex-shrink-0">
+              <Camera className="w-3.5 h-3.5 text-sepia-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-700 truncate">
+                {concept.cameraModels[0]}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Outfit Style */}
-        <div className="mb-5">
-          <h4 className="text-xs text-gray-500 mb-2">스타일 방향</h4>
-          <p className="text-sm text-gray-700">{concept.outfitStyle}</p>
+        {/* Style - Fixed Height */}
+        <div className="mb-3 p-2.5 bg-cream-50 rounded-lg flex-shrink-0">
+          <p className="text-xs text-gray-600 line-clamp-2">{concept.outfitStyle}</p>
         </div>
 
-        {/* Color Palette */}
-        <div className="mb-5">
-          <h4 className="text-xs text-gray-500 mb-2">컬러 팔레트</h4>
-          <div className="flex gap-2">
-            {concept.colorPalette.map((color, idx) => (
-              <div
-                key={idx}
-                className="w-8 h-8 rounded-lg border border-cream-200"
-                style={{ backgroundColor: color }}
-                title={color}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Keywords */}
-        <div className="flex flex-wrap gap-2 mb-5">
-          {concept.keywords.map((keyword) => (
-            <span
-              key={keyword}
-              className="text-xs text-gray-400 capitalize"
-            >
+        {/* Keywords - Fixed Height */}
+        <div className="flex flex-wrap gap-1 mb-4 h-[44px] overflow-hidden flex-shrink-0">
+          {concept.keywords.slice(0, 4).map((keyword) => (
+            <Badge key={keyword} variant="secondary" size="sm" className="text-xs">
               #{keyword}
-            </span>
+            </Badge>
           ))}
         </div>
 
-        {/* Select Button */}
-        <Button
-          variant={isSelected ? 'primary' : 'outline'}
-          className="w-full"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect();
-          }}
-        >
-          {isSelected ? '✓ 선택됨' : '이 컨셉 선택하기'}
-        </Button>
+        {/* Select Button - Always at bottom */}
+        <div className="mt-auto flex-shrink-0">
+          <Button
+            variant={isSelected ? 'primary' : 'outline'}
+            className="w-full"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
+          >
+            {isSelected ? '✓ 선택 완료' : '이 컨셉 선택'}
+          </Button>
+        </div>
       </div>
     </motion.div>
   );

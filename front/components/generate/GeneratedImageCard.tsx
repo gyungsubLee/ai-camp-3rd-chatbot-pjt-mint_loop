@@ -34,13 +34,12 @@ export function GeneratedImageCard({
       transition={{ duration: 0.5 }}
       className="bg-white rounded-2xl border border-cream-200 overflow-hidden shadow-lg"
     >
-      {/* 필름 프레임 스타일 헤더 */}
-      <div
-        className="h-3"
-        style={{
-          background: `linear-gradient(90deg, ${concept.colorPalette[0]}, ${concept.colorPalette[1]}, ${concept.colorPalette[2]})`,
-        }}
-      />
+      {/* 필름 타입 헤더 */}
+      <div className="h-8 bg-gradient-to-r from-gray-900 to-gray-700 flex items-center justify-center">
+        <span className="text-white text-xs font-medium tracking-wide">
+          🎞️ {concept.filmType} Style
+        </span>
+      </div>
 
       {/* 필름 스프로킷 홀 디자인 */}
       <div className="bg-gray-900 px-4 py-2 flex justify-between items-center">

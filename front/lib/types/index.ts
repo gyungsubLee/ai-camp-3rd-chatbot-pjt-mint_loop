@@ -18,7 +18,7 @@ export type Interest =
   | 'nature'
   | 'architecture';
 
-export type Concept = 'flaneur' | 'filmlog' | 'midnight';
+export type Concept = 'flaneur' | 'filmlog' | 'midnight' | 'pastoral' | 'noir' | 'seaside';
 
 export type ConversationStep =
   | 'init'

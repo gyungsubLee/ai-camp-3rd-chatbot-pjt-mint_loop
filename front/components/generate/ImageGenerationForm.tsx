@@ -42,10 +42,13 @@ export function ImageGenerationForm({
     }
   };
 
-  const placeholderExamples = {
+  const placeholderExamples: Record<string, string> = {
     flaneur: '예: 파리 몽마르트르의 카페 테라스',
     filmlog: '예: 제주도 협재 해변의 석양',
     midnight: '예: 뉴욕 그리니치 빌리지의 재즈 클럽',
+    pastoral: '예: 프로방스 라벤더 들판의 오솔길',
+    noir: '예: 홍콩 네온 불빛 아래 골목길',
+    seaside: '예: 포르투갈 나자레 해안의 파도',
   };
 
   return (
@@ -122,21 +125,14 @@ export function ImageGenerationForm({
         </div>
       </div>
 
-      {/* 컬러 팔레트 미리보기 */}
+      {/* 필름 스타일 미리보기 */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          컬러 팔레트
+          🎞️ {concept.filmType} 필름 스타일
         </label>
-        <div className="flex gap-2">
-          {concept.colorPalette.map((color, idx) => (
-            <div
-              key={idx}
-              className="w-10 h-10 rounded-lg border border-cream-200 shadow-sm"
-              style={{ backgroundColor: color }}
-              title={color}
-            />
-          ))}
-        </div>
+        <p className="text-sm text-gray-600 bg-cream-50 p-3 rounded-lg border border-cream-200">
+          {concept.filmStyleDescription}
+        </p>
       </div>
 
       {/* 생성 버튼 */}

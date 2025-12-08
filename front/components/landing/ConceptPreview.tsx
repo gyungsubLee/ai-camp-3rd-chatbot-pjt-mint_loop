@@ -17,12 +17,12 @@ export function ConceptPreview() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <Badge className="mb-4">3 Aesthetic Concepts</Badge>
+            <Badge className="mb-4">6 Film Style Concepts</Badge>
             <h2 className="font-serif text-3xl md:text-4xl text-gray-900 mb-4">
               당신의 여행 컨셉을 선택하세요
             </h2>
             <p className="text-gray-600 max-w-xl mx-auto">
-              세 가지 감성 컨셉 중 하나를 선택하면,
+              여섯 가지 필름 감성 컨셉 중 하나를 선택하면,
               <br className="hidden md:block" />
               그에 맞는 장소와 스타일을 큐레이션해드립니다.
             </p>
@@ -41,13 +41,12 @@ export function ConceptPreview() {
             >
               <Link href={`/concept?selected=${concept.id}`}>
                 <div className="group relative overflow-hidden rounded-2xl bg-cream-50 border border-cream-200 hover:border-sepia-300 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl cursor-pointer">
-                  {/* Concept Color Bar */}
-                  <div
-                    className="h-2"
-                    style={{
-                      background: `linear-gradient(90deg, ${concept.colorPalette[0]}, ${concept.colorPalette[1]})`,
-                    }}
-                  />
+                  {/* Film Type Bar */}
+                  <div className="h-8 bg-gradient-to-r from-gray-900 to-gray-700 flex items-center justify-center">
+                    <span className="text-white text-xs font-medium tracking-wide">
+                      🎞️ {concept.filmType} Style
+                    </span>
+                  </div>
 
                   {/* Content */}
                   <div className="p-6">
