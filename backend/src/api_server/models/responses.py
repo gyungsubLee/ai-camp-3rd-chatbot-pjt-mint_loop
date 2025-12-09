@@ -63,4 +63,15 @@ class ChatResponse(BaseModel):
     isComplete: bool = False
     collectedData: Optional[dict] = None
     rejectedItems: Optional[RejectedItems] = None
+    suggestedOptions: list[str] = []
+    sessionId: str = ""  # 세션 ID
     error: Optional[str] = None
+
+
+class SessionHistoryResponse(BaseModel):
+    """Session history response."""
+    sessionId: str
+    history: list[dict]
+    currentStep: Optional[str] = None
+    collectedData: Optional[dict] = None
+    isComplete: bool = False

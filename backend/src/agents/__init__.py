@@ -12,6 +12,15 @@ from .image_agent import (
     ImageGenerationInput,
     ImageGenerationOutput,
 )
+from .chat_agent import (
+    ChatAgent,
+    ChatState,
+    ChatInput,
+    ChatOutput,
+    CollectedData,
+    RejectedItems,
+    get_shared_checkpointer,
+)
 
 __all__ = [
     # Recommendation Agent
@@ -24,4 +33,12 @@ __all__ = [
     "ImageGenerationState",
     "ImageGenerationInput",
     "ImageGenerationOutput",
+    # Chat Agent
+    "ChatAgent",
+    "ChatState",
+    "ChatInput",
+    "ChatOutput",
+    "CollectedData",
+    "RejectedItems",
+    "get_shared_checkpointer",
 ]

@@ -64,6 +64,9 @@ class RejectedItems(BaseModel):
 class ChatRequest(BaseModel):
     """Chat conversation request."""
     message: str
+    sessionId: str  # 세션 ID (필수)
+    userId: Optional[str] = None  # 사용자 ID (선택)
+    # Legacy fields (하위 호환성)
     conversationHistory: list[ChatMessage] = []
     currentStep: str = "greeting"
     collectedData: Optional[dict] = None

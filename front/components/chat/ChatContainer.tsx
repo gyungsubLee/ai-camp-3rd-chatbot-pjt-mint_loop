@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useVibeStore } from '@/lib/store/useVibeStore';
+import { useChatStore } from '@/lib/store/useChatStore';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { ChatInput } from './ChatInput';
@@ -14,11 +15,6 @@ import type { TripKitStep, TripKitProfile, Concept } from '@/lib/types';
 // ============================================
 // 타입 정의
 // ============================================
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
 interface CollectedData {
   city: string | null;
   spotName: string | null;
@@ -48,6 +44,8 @@ interface ChatApiResponse {
   isComplete: boolean;
   collectedData?: CollectedData;
   rejectedItems?: RejectedItems;
+  suggestedOptions?: string[];
+  sessionId: string;
   error?: string;
 }
 
@@ -112,38 +110,31 @@ export function ChatContainer() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasInitialized = useRef(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [currentApiStep, setCurrentApiStep] = useState('greeting');
-  const [collectedData, setCollectedData] = useState<CollectedData>({
-    city: null,
-    spotName: null,
-    mainAction: null,
-    conceptId: null,
-    outfitStyle: null,
-    posePreference: null,
-    filmType: null,
-    cameraModel: null,
-  });
-  const [rejectedItems, setRejectedItems] = useState<RejectedItems>({
-    cities: [],
-    spots: [],
-    actions: [],
-    concepts: [],
-    outfits: [],
-    poses: [],
-    films: [],
-    cameras: [],
-  });
-  const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Session Store (persist)
   const {
-    tripKitProfile,
+    sessionId,
+    messages: chatMessages,
+    collectedData,
+    rejectedItems,
+    isLoading,
+    initSession,
+    addMessage,
+    setMessages,
+    setCollectedData,
+    setRejectedItems,
+    setLoading,
+    refreshActivity,
+    loadFromHistory,
+  } = useChatStore();
+
+  // Vibe Store (tripKitProfile 연동)
+  const {
     tripKitStep,
-    chatMessages,
     updateTripKitProfile,
     setTripKitStep,
-    addChatMessage,
     resetTripKitChat,
   } = useVibeStore();
 
@@ -152,40 +143,30 @@ export function ChatContainer() {
     setIsMounted(true);
   }, []);
 
-  // 초기화
+  // 세션 초기화 및 복구
   useEffect(() => {
     if (!isMounted) return;
-    if (!hasInitialized.current) {
-      hasInitialized.current = true;
-      resetTripKitChat();
-      setConversationHistory([]);
-      setCollectedData({
-        city: null,
-        spotName: null,
-        mainAction: null,
-        conceptId: null,
-        outfitStyle: null,
-        posePreference: null,
-        filmType: null,
-        cameraModel: null,
-      });
-      setRejectedItems({
-        cities: [],
-        spots: [],
-        actions: [],
-        concepts: [],
-        outfits: [],
-        poses: [],
-        films: [],
-        cameras: [],
-      });
-      setCurrentApiStep('greeting');
-      setTimeout(() => {
-        addChatMessage({ role: 'assistant', content: WELCOME_MESSAGE });
-        setTripKitStep('greeting');
-      }, 100);
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
+    const currentSessionId = initSession();
+
+    // localStorage에 메시지가 있으면 복구 (세션 복구)
+    if (chatMessages.length > 0) {
+      console.log('Restoring session from localStorage:', currentSessionId);
+      setTripKitStep(STEP_MAPPING[currentApiStep] || 'greeting');
+      return;
     }
-  }, [isMounted, addChatMessage, setTripKitStep, resetTripKitChat]);
+
+    // 새 세션: 웰컴 메시지 표시
+    console.log('Starting new session:', currentSessionId);
+    resetTripKitChat();
+
+    setTimeout(() => {
+      addMessage({ role: 'assistant', content: WELCOME_MESSAGE });
+      setTripKitStep('greeting');
+    }, 100);
+  }, [isMounted]);
 
   // 스크롤
   useEffect(() => {
@@ -214,21 +195,15 @@ export function ChatContainer() {
   const handleSendMessage = useCallback(
     async (content: string) => {
       const userInput = content.trim();
-      if (!userInput) return;
+      if (!userInput || !sessionId) return;
 
       // 사용자 메시지 추가
-      addChatMessage({ role: 'user', content: userInput });
-      setIsLoading(true);
-
-      // 대화 히스토리에 추가
-      const newHistory: ChatMessage[] = [
-        ...conversationHistory,
-        { role: 'user', content: userInput },
-      ];
-      setConversationHistory(newHistory);
+      addMessage({ role: 'user', content: userInput });
+      setLoading(true);
+      refreshActivity();
 
       try {
-        // API 호출
+        // API 호출 (세션 ID 포함)
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
@@ -236,44 +211,23 @@ export function ChatContainer() {
           },
           body: JSON.stringify({
             message: userInput,
-            conversationHistory: newHistory,
-            currentStep: currentApiStep,
-            collectedData,
-            rejectedItems,
+            sessionId,
           }),
         });
 
         const data: ChatApiResponse = await response.json();
 
         // 응답 메시지 추가
-        addChatMessage({ role: 'assistant', content: data.reply });
-
-        // 대화 히스토리 업데이트
-        setConversationHistory([
-          ...newHistory,
-          { role: 'assistant', content: data.reply },
-        ]);
+        addMessage({ role: 'assistant', content: data.reply });
 
         // 수집된 데이터 업데이트
         if (data.collectedData) {
-          setCollectedData(prev => ({
-            ...prev,
-            ...data.collectedData,
-          }));
+          setCollectedData(data.collectedData as TripKitProfile);
         }
 
-        // 거부된 항목 업데이트 (누적)
+        // 거부된 항목 업데이트
         if (data.rejectedItems) {
-          setRejectedItems(prev => ({
-            cities: Array.from(new Set([...prev.cities, ...(data.rejectedItems?.cities || [])])),
-            spots: Array.from(new Set([...prev.spots, ...(data.rejectedItems?.spots || [])])),
-            actions: Array.from(new Set([...prev.actions, ...(data.rejectedItems?.actions || [])])),
-            concepts: Array.from(new Set([...prev.concepts, ...(data.rejectedItems?.concepts || [])])),
-            outfits: Array.from(new Set([...prev.outfits, ...(data.rejectedItems?.outfits || [])])),
-            poses: Array.from(new Set([...prev.poses, ...(data.rejectedItems?.poses || [])])),
-            films: Array.from(new Set([...prev.films, ...(data.rejectedItems?.films || [])])),
-            cameras: Array.from(new Set([...prev.cameras, ...(data.rejectedItems?.cameras || [])])),
-          }));
+          setRejectedItems(data.rejectedItems);
         }
 
         // 단계 업데이트
@@ -295,25 +249,39 @@ export function ChatContainer() {
         }
       } catch (error) {
         console.error('Chat error:', error);
-        addChatMessage({
+        addMessage({
           role: 'assistant',
           content: '앗, 잠시 문제가 생겼어요. 다시 시도해주세요 🙏',
         });
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     },
     [
-      currentApiStep,
-      collectedData,
-      rejectedItems,
-      conversationHistory,
+      sessionId,
       tripKitStep,
-      addChatMessage,
+      addMessage,
+      setLoading,
+      setCollectedData,
+      setRejectedItems,
       setTripKitStep,
+      refreshActivity,
       router,
     ]
   );
+
+  // 새 대화 시작 핸들러
+  const handleNewChat = useCallback(() => {
+    useChatStore.getState().resetSession();
+    resetTripKitChat();
+    setCurrentApiStep('greeting');
+    hasInitialized.current = false;
+
+    setTimeout(() => {
+      addMessage({ role: 'assistant', content: WELCOME_MESSAGE });
+      setTripKitStep('greeting');
+    }, 100);
+  }, [resetTripKitChat, addMessage, setTripKitStep]);
 
   const quickReplies = QUICK_REPLIES[currentApiStep];
 
@@ -332,9 +300,17 @@ export function ChatContainer() {
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-3">
             <h1 className="font-serif text-xl text-gray-900">Trip Kit</h1>
-            <span className="text-sm text-gray-500">
-              {tripKitStep === 'complete' ? '✨ 완료!' : 'Gemini와 대화 중...'}
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleNewChat}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                새 대화
+              </button>
+              <span className="text-sm text-gray-500">
+                {tripKitStep === 'complete' ? '✨ 완료!' : 'Gemini와 대화 중...'}
+              </span>
+            </div>
           </div>
           <ProgressBar currentStep={tripKitStep} />
         </div>

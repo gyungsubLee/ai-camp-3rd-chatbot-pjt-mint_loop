@@ -51,7 +51,7 @@ GEMINI_MODELS = [
     "gemini-1.5-pro",
     "gemini-1.0-pro",
 ]
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash-exp"
+DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_TEXT_MODEL", "gemini-1.5-flash")
 
 # Vertex AI 설정
 DEFAULT_VERTEX_PROJECT = os.getenv("VERTEX_PROJECT_ID", "")
@@ -298,11 +298,16 @@ class GeminiImageProvider(ImageProvider):
 class GeminiLLMProvider(LLMProvider):
     """Google Gemini LLM 텍스트 생성 Provider
 
-    Gemini API를 사용하여 텍스트를 생성합니다.
-    환경변수에서 인증 정보를 읽습니다.
+    Gemini API 또는 Vertex AI를 사용하여 텍스트를 생성합니다.
+    use_vertex=True 설정 시 Vertex AI 사용 (더 높은 쿼터, 유료 크레딧)
 
     Example:
+        # Gemini API 사용 (무료 티어, 낮은 쿼터)
         provider = GeminiLLMProvider()
+
+        # Vertex AI 사용 (유료 크레딧, 높은 쿼터)
+        provider = GeminiLLMProvider(use_vertex=True)
+
         result = await provider.generate(LLMGenerationParams(
             prompt="여행지 3곳을 추천해주세요",
             system_prompt="당신은 여행 전문가입니다",
@@ -314,26 +319,49 @@ class GeminiLLMProvider(LLMProvider):
         self,
         model: str | None = None,
         client: Any = None,
+        use_vertex: bool | None = None,
+        project: str | None = None,
+        location: str | None = None,
     ):
         """Gemini LLM Provider 초기화
 
         Args:
             model: 사용할 모델 이름 (None이면 기본값 사용)
             client: genai.Client 인스턴스 (None이면 자동 생성)
+            use_vertex: Vertex AI 사용 여부 (None이면 환경변수 USE_VERTEX_AI 참조)
+            project: Vertex AI 프로젝트 ID (use_vertex=True일 때만 사용)
+            location: Vertex AI 리전 (use_vertex=True일 때만 사용)
         """
         self._model = model or DEFAULT_GEMINI_MODEL
         self._client = client
 
+        # use_vertex 결정: 명시적 파라미터 > 환경변수 > 기본값(False)
+        if use_vertex is None:
+            use_vertex = os.getenv("USE_VERTEX_AI", "").lower() in ("true", "1", "yes")
+        self._use_vertex = use_vertex
+        self._project = project or DEFAULT_VERTEX_PROJECT
+        self._location = location or DEFAULT_VERTEX_LOCATION
+
         self._log_info(
             "GeminiLLMProvider initialized",
             model=self._model,
+            use_vertex=self._use_vertex,
+            project=self._project if self._use_vertex else None,
         )
 
     def _get_client(self):
-        """Lazy initialization of Gemini client"""
+        """Lazy initialization of Gemini/Vertex AI client"""
         if self._client is None:
-            self._client = get_gemini_client()
-            self._log_info("Gemini client initialized")
+            if self._use_vertex:
+                self._client = get_vertex_client(self._project, self._location)
+                self._log_info(
+                    "Vertex AI client initialized",
+                    project=self._project,
+                    location=self._location,
+                )
+            else:
+                self._client = get_gemini_client()
+                self._log_info("Gemini client initialized")
         return self._client
 
     @property

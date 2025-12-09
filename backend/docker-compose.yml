@@ -29,40 +29,40 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Image Generation MCP Server - Gemini Imagen 이미지 생성
-  image-mcp:
-    build:
-      context: .
-      dockerfile: Dockerfile.image-mcp
-    container_name: image-mcp
-    ports:
-      - "8051:8051"
-    env_file:
-      - ../.env
-    environment:
-      # 모든 환경변수는 루트 .env 파일에서 로드됨
-      - IMAGE_PROVIDER=${IMAGE_PROVIDER}
-      - GEMINI_IMAGE_MODEL=${GEMINI_IMAGE_MODEL}
-      - IMAGE_DEFAULT_SIZE=${IMAGE_DEFAULT_SIZE}
-      - IMAGE_DEFAULT_QUALITY=${IMAGE_DEFAULT_QUALITY}
-      - IMAGE_DEFAULT_STYLE=${IMAGE_DEFAULT_STYLE}
-      - MCP_SERVER_PORT=8051
-      - DEBUG=${DEBUG:-false}
-      - LOG_LEVEL=${LOG_LEVEL}
-    restart: unless-stopped
-    networks:
-      - image-gen-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8051/ || exit 0"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # # Image Generation MCP Server - Gemini Imagen 이미지 생성
+  # image-mcp:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.image-mcp
+  #   container_name: image-mcp
+  #   ports:
+  #     - "8051:8051"
+  #   env_file:
+  #     - ../.env
+  #   environment:
+  #     # 모든 환경변수는 루트 .env 파일에서 로드됨
+  #     - IMAGE_PROVIDER=${IMAGE_PROVIDER}
+  #     - GEMINI_IMAGE_MODEL=${GEMINI_IMAGE_MODEL}
+  #     - IMAGE_DEFAULT_SIZE=${IMAGE_DEFAULT_SIZE}
+  #     - IMAGE_DEFAULT_QUALITY=${IMAGE_DEFAULT_QUALITY}
+  #     - IMAGE_DEFAULT_STYLE=${IMAGE_DEFAULT_STYLE}
+  #     - MCP_SERVER_PORT=8051
+  #     - DEBUG=${DEBUG:-false}
+  #     - LOG_LEVEL=${LOG_LEVEL}
+  #   restart: unless-stopped
+  #   networks:
+  #     - image-gen-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -sf http://localhost:8051/ || exit 0"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 10s
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
   # Google Places MCP Server - 장소 검색 및 상세 정보
   places-mcp:

@@ -14,6 +14,7 @@ from .responses import (
     Destination,
     RecommendationResponse,
     ChatResponse,
+    SessionHistoryResponse,
 )
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "Destination",
     "RecommendationResponse",
     "ChatResponse",
+    "SessionHistoryResponse",
 ]
