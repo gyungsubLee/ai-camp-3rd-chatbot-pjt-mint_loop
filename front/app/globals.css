@@ -223,4 +223,104 @@
   .safe-top {
     padding-top: env(safe-area-inset-top, 0);
   }
+
+}
+
+/* TripKit Highlight - Season Variants (outside @layer to prevent purging) */
+.tripkit-highlight {
+  display: inline;
+  transition: color 600ms ease;
+}
+
+/* 봄 – 연분홍 */
+.tripkit-highlight--spring {
+  color: #ff9eb8;
+}
+
+/* 여름 – 블루 */
+.tripkit-highlight--summer {
+  color: #a8d4ff;
+}
+
+/* 가을 – 노랑/오렌지 */
+.tripkit-highlight--autumn {
+  color: #ffe4a8;
+}
+
+/* 겨울 – 차가운 블루 + 화이트 느낌 */
+.tripkit-highlight--winter {
+  color: #7dd3fc;
+}
+
+/* Cherry Blossom Effect */
+.petals {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.petal {
+  position: absolute;
+  top: -20px;
+  background: linear-gradient(135deg, #ffb7c5 0%, #ff8fa3 100%);
+  border-radius: 50% 0 50% 50%;
+  opacity: 0.85;
+  animation: flutter linear infinite;
+}
+
+@keyframes flutter {
+  0% {
+    transform: translateY(-20px) translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(50vh) translateX(30px) rotate(180deg);
+  }
+  90% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(100vh) translateX(-20px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Snow Effect */
+.snowfall {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.snowflake {
+  position: absolute;
+  top: -10px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: fall linear infinite;
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(-10px) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
 }

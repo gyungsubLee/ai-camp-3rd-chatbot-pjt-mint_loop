@@ -1,17 +1,79 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 
+// Cherry blossom effect component
+function CherryBlossom() {
+  const petals = useMemo(() => {
+    return Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      size: Math.random() * 10 + 8,
+      duration: Math.random() * 4 + 5,
+      delay: Math.random() * 6,
+    }));
+  }, []);
+
+  return (
+    <div className="petals">
+      {petals.map((petal) => (
+        <div
+          key={petal.id}
+          className="petal"
+          style={{
+            left: petal.left,
+            width: petal.size,
+            height: petal.size,
+            animationDuration: `${petal.duration}s`,
+            animationDelay: `${petal.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Snow effect component
+function Snowfall() {
+  const snowflakes = useMemo(() => {
+    return Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      size: Math.random() * 4 + 2,
+      duration: Math.random() * 3 + 4,
+      delay: Math.random() * 5,
+    }));
+  }, []);
+
+  return (
+    <div className="snowfall">
+      {snowflakes.map((flake) => (
+        <div
+          key={flake.id}
+          className="snowflake"
+          style={{
+            left: flake.left,
+            width: flake.size,
+            height: flake.size,
+            animationDuration: `${flake.duration}s`,
+            animationDelay: `${flake.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 const slides = [
-  { src: '/img/1.avif', alt: 'Travel vibe 1' },
-  { src: '/img/2.png', alt: 'Travel vibe 2' },
-  { src: '/img/1043251_1065941_175.jpg', alt: 'Autumn landscape' },
-  { src: '/img/4.jpg', alt: 'Travel vibe 4' },
-];
+  { src: '/img/1.avif', alt: 'Travel vibe 1', season: 'spring' },
+  { src: '/img/2.png', alt: 'Travel vibe 2', season: 'summer' },
+  { src: '/img/스크린샷 2025-12-09 오후 4.57.02.png', alt: 'Autumn landscape', season: 'autumn' },
+  { src: '/img/4.jpg', alt: 'Travel vibe 4', season: 'winter' },
+] as const;
 
 export function Hero() {
   const [mounted, setMounted] = useState(false);
@@ -56,6 +118,32 @@ export function Hero() {
             />
           </motion.div>
         </AnimatePresence>
+        {/* Cherry blossom effect for spring */}
+        <AnimatePresence>
+          {slides[currentIndex].season === 'spring' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <CherryBlossom />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Snow effect for winter */}
+        <AnimatePresence>
+          {slides[currentIndex].season === 'winter' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <Snowfall />
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Overlay for text readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60 z-10" />
       </div>
@@ -79,10 +167,12 @@ export function Hero() {
 
           {/* Main Headline */}
           <div className="relative inline-block mb-8">
-            <h1 className="relative font-serif text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-white leading-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+            <h1 className="relative font-serif text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-white leading-[1.48] drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
               당신은 티켓만 끊으세요.
               <br />
-              <span className="text-cream-100 font-normal">여행의 &apos;분위기&apos;</span>는
+              <span className={`tripkit-highlight tripkit-highlight--${slides[currentIndex].season}`}>
+                여행의 &apos;분위기&apos;
+              </span>는
               <br />
               우리가 챙겨드립니다.
             </h1>
