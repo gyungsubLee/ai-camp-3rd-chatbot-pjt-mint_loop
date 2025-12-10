@@ -1,5 +1,5 @@
 # Trip Kit - AI Integration Guide
-## Vibe-Driven AI: LangGraph, GPT-4, and DALL-E 3 Integration Patterns
+## Vibe-Driven AI: LangGraph Agents with Python Backend
 
 **"여행의 감성을 이해하고 시각화하는 AI"**
 *AI That Understands and Visualizes Your Travel Vibe*
@@ -9,1491 +9,998 @@
 ## 📋 Document Information
 
 - **Document Version**: 2.0.0
-- **Last Updated**: 2025-12-04
-- **Target Framework**: LangGraph + OpenAI SDK
-- **Related Documents**: [TRD](./TRD_TripKit_MVP.md), [API Docs](./API_Documentation.md)
-- **Core Focus**: Vibe extraction, emotional preference matching, film aesthetic generation
+- **Last Updated**: 2025-12-10
+- **Backend Framework**: Python 3.12+ / LangGraph 0.6.4+ / FastAPI
+- **AI Providers**: OpenAI (GPT-4o-mini), Google Gemini Imagen
+- **Related Documents**: [TRD](./TRD_TripKit_MVP.md), [API Docs](./API_Documentation.md), [Sub-Agent Architecture](./Sub_Agent_Architecture.md)
 
 ---
 
 ## 🎯 Overview
 
-This guide provides **vibe-driven AI integration patterns** for Trip Kit:
+Trip Kit uses **Python LangGraph** for agent orchestration with a **3-agent architecture**:
+
+### AI Agent System
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     FastAPI Backend (Python)                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────────┐   ┌─────────────────────┐   ┌─────────────────┐   │
+│  │  ChatAgent   │   │ RecommendationAgent │   │   ImageAgent    │   │
+│  │              │   │                     │   │                 │   │
+│  │ Human-in-   │   │ 5-Step Workflow:    │   │ 3-Step Workflow:│   │
+│  │ the-loop    │   │ 1. analyze_prefs    │   │ 1. extract_kw   │   │
+│  │              │   │ 2. build_prompt     │   │ 2. optimize     │   │
+│  │ LLM: Gemini │   │ 3. generate_recs    │   │ 3. generate     │   │
+│  │              │   │ 4. parse_response   │   │                 │   │
+│  │              │   │ 5. enrich_places    │   │ Model: Imagen   │   │
+│  │              │   │                     │   │                 │   │
+│  │              │   │ LLM: GPT-4o-mini    │   │                 │   │
+│  └──────────────┘   └─────────────────────┘   └─────────────────┘   │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐ │
+│  │                    MCP Servers (FastMCP)                         │ │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │ │
+│  │  │ Search MCP  │  │ Places MCP  │  │ Image MCP (Future)      │  │ │
+│  │  │ Port: 8050  │  │ Port: 8052  │  │                         │  │ │
+│  │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │ │
+│  └─────────────────────────────────────────────────────────────────┘ │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ### Core AI Components
 
-1. **LangGraph Vibe Analyzer**: Stateful conversation management that extracts emotional preferences through natural dialogue
-   - **Purpose**: Transform unstructured user messages → Structured vibe profile
-   - **Flow**: Mood → Aesthetic → Duration → Interests → Vibe Synthesis
-
-2. **GPT-4 Vibe Matcher**: Intelligent recommendation engine that matches user vibes to hidden local spots
-   - **Purpose**: Find places that resonate emotionally, not just functionally
-   - **Criteria**: Hidden spots, photogenic, authentic atmosphere, vibe-aligned
-
-3. **DALL-E 3 Vibe Visualizer**: Film-aesthetic image generation showing the imagined travel experience
-   - **Purpose**: "Show me what my vibe looks like in reality"
-   - **Style**: Authentic analog film photography (Kodak, Fuji, Ilford)
+| Agent | Purpose | LLM Provider | Workflow |
+|-------|---------|--------------|----------|
+| **ChatAgent** | TripKit profile extraction via conversation | Gemini | Human-in-the-loop |
+| **RecommendationAgent** | Vibe-matched destination recommendations | OpenAI GPT-4o-mini | 5-step linear |
+| **ImageAgent** | Film-aesthetic image generation | Gemini Imagen | 3-step linear |
 
 ---
 
-## 🗣️ LangGraph Conversation System
+## 🏗️ LangGraph Architecture
+
+### StateGraph Pattern
+
+All agents use LangGraph's `StateGraph` for workflow orchestration:
+
+```python
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+from typing import TypedDict, Annotated
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+
+# State schema with message accumulator
+class AgentState(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+    # ... other state fields
+    status: str
+    error: str | None
+
+# Build workflow
+workflow = StateGraph(AgentState)
+workflow.add_node("step_1", step_1_node)
+workflow.add_node("step_2", step_2_node)
+workflow.set_entry_point("step_1")
+workflow.add_edge("step_1", "step_2")
+workflow.add_edge("step_2", END)
+
+# Compile with checkpointing
+graph = workflow.compile(checkpointer=MemorySaver())
+```
+
+---
+
+## 🗣️ ChatAgent: Human-in-the-loop Conversation
 
 ### Architecture
 
-LangGraph manages conversation state through a directed state graph where each node represents a conversation step.
+ChatAgent uses LangGraph's **interrupt pattern** for multi-turn conversation with session persistence.
 
-```typescript
-// State Definition
-interface ConversationState {
-  messages: Message[];
-  currentStep: ConversationStep;
-  preferences: UserPreferences;
-  recommendations: Destination[] | null;
-  sessionId: string;
-  metadata: {
-    startTime: number;
-    totalMessages: number;
-  };
-}
-
-type ConversationStep =
-  | 'init'
-  | 'mood'
-  | 'aesthetic'
-  | 'duration'
-  | 'interests'
-  | 'complete';
-
-interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: number;
-}
-
-interface UserPreferences {
-  mood?: 'romantic' | 'adventurous' | 'nostalgic' | 'peaceful';
-  aesthetic?: 'urban' | 'nature' | 'vintage' | 'modern';
-  duration?: 'short' | 'medium' | 'long';
-  interests?: Interest[];
-  concept?: 'flaneur' | 'filmlog' | 'midnight';
-}
 ```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      ChatAgent Workflow                              │
+│                                                                       │
+│   ┌──────────┐    ┌──────────────┐    ┌───────────────────┐         │
+│   │  START   │───►│ process_msg  │───►│ route_by_status   │         │
+│   └──────────┘    └──────────────┘    └───────────────────┘         │
+│                          │                      │                    │
+│                    [process]              [needs_input]              │
+│                          │                      │                    │
+│                    ┌─────▼─────┐         ┌──────▼──────┐            │
+│                    │ route_nxt │         │ wait_input  │            │
+│                    └───────────┘         └──────┬──────┘            │
+│                          │                      │                    │
+│                   [continue|complete]     [interrupt → END]          │
+│                          │                                           │
+│                    ┌─────▼─────┐                                     │
+│                    │ summarize │───► [END]                           │
+│                    └───────────┘                                     │
+│                                                                       │
+│   Checkpointer: MemorySaver (session persistence)                    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### State Schema
+
+```python
+# backend/src/agents/chat_agent/state.py
+from typing import TypedDict, Annotated, Literal
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+
+class TripKitProfile(TypedDict, total=False):
+    """Collected user preferences for TripKit generation."""
+    city: str
+    spotName: str
+    conceptId: str
+    mainAction: str
+    outfitStyle: str
+    filmType: str
+    cameraModel: str
+
+class RejectedItems(TypedDict, total=False):
+    """Items user has rejected."""
+    cities: list[str]
+    spots: list[str]
+    actions: list[str]
+    concepts: list[str]
+    outfits: list[str]
+    poses: list[str]
+    films: list[str]
+    cameras: list[str]
+
+ConversationStep = Literal[
+    "greeting", "city", "spot_name", "concept",
+    "main_action", "outfit_style", "film_type",
+    "camera_model", "summary", "complete"
+]
+
+class ChatState(TypedDict):
+    """ChatAgent state schema."""
+    messages: Annotated[list[BaseMessage], add_messages]
+    user_message: str
+    current_step: ConversationStep
+    collected_data: TripKitProfile
+    rejected_items: RejectedItems
+    suggested_options: list[str]
+    is_complete: bool
+    session_id: str
+    reply: str
+    status: Literal["processing", "needs_input", "complete"]
+    error: str | None
+```
+
+### Conversation Flow
+
+```
+greeting → city → spot_name → concept → main_action →
+outfit_style → film_type → camera_model → summary → complete
+```
+
+Each step:
+1. **Validates** current input
+2. **Extracts** relevant data to `collected_data`
+3. **Tracks** rejections in `rejected_items`
+4. **Generates** next prompt with `suggested_options`
 
 ### Implementation
 
-#### 1. State Graph Setup
+```python
+# backend/src/agents/chat_agent/agent.py
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+from .state import ChatState
+from .nodes import process_message_node, route_by_status, wait_input_node, summarize_node
 
-```typescript
-// lib/langgraph/conversation-graph.ts
-import { StateGraph, END } from '@langchain/langgraph';
-import { ChatOpenAI } from 'langchain/chat_models/openai';
-import { HumanMessage, AIMessage, SystemMessage } from 'langchain/schema';
+class ChatAgent:
+    def __init__(self, checkpointer: MemorySaver | None = None):
+        self.checkpointer = checkpointer or MemorySaver()
+        self.graph = self._build_graph()
 
-// Initialize GPT-4 model
-const model = new ChatOpenAI({
-  modelName: 'gpt-4-turbo-preview',
-  temperature: 0.7,
-  openAIApiKey: process.env.OPENAI_API_KEY,
-});
+    def _build_graph(self):
+        workflow = StateGraph(ChatState)
 
-// Define state channels
-const conversationChannels = {
-  messages: {
-    value: (x: Message[], y: Message[]) => x.concat(y),
-    default: () => [],
-  },
-  currentStep: {
-    value: (x: ConversationStep, y: ConversationStep) => y,
-    default: () => 'init' as ConversationStep,
-  },
-  preferences: {
-    value: (x: UserPreferences, y: UserPreferences) => ({ ...x, ...y }),
-    default: () => ({}),
-  },
-  recommendations: {
-    value: (x: Destination[] | null, y: Destination[] | null) => y,
-    default: () => null,
-  },
-};
+        # Add nodes
+        workflow.add_node("process_message", process_message_node)
+        workflow.add_node("wait_input", wait_input_node)
+        workflow.add_node("summarize", summarize_node)
 
-// Create state graph
-const conversationGraph = new StateGraph({
-  channels: conversationChannels,
-});
+        # Entry point
+        workflow.set_entry_point("process_message")
+
+        # Conditional routing
+        workflow.add_conditional_edges(
+            "process_message",
+            route_by_status,
+            {
+                "needs_input": "wait_input",
+                "continue": "process_message",
+                "complete": "summarize",
+            }
+        )
+
+        # wait_input → END (interrupt for user input)
+        workflow.add_edge("wait_input", END)
+        workflow.add_edge("summarize", END)
+
+        return workflow.compile(checkpointer=self.checkpointer)
+
+    async def chat(self, input_data: ChatInput) -> dict:
+        """Process chat message with session persistence."""
+        config = {"configurable": {"thread_id": input_data["session_id"]}}
+
+        initial_state = {
+            "messages": [],
+            "user_message": input_data["message"],
+            "current_step": "greeting",
+            "collected_data": {},
+            "rejected_items": {},
+            "suggested_options": [],
+            "is_complete": False,
+            "session_id": input_data["session_id"],
+            "reply": "",
+            "status": "processing",
+            "error": None,
+        }
+
+        result = await self.graph.ainvoke(initial_state, config)
+
+        return {
+            "reply": result["reply"],
+            "current_step": result["current_step"],
+            "next_step": get_next_step(result["current_step"]),
+            "is_complete": result["is_complete"],
+            "collected_data": result["collected_data"],
+            "rejected_items": result["rejected_items"],
+            "suggested_options": result["suggested_options"],
+            "session_id": result["session_id"],
+        }
 ```
 
-#### 2. Define Conversation Nodes
+### Session Recovery
 
-```typescript
-// lib/langgraph/nodes.ts
+```python
+async def get_conversation_history(self, session_id: str) -> list[dict]:
+    """Retrieve conversation history for session recovery."""
+    config = {"configurable": {"thread_id": session_id}}
 
-// Vibe-focused system prompt for all nodes
-const VIBE_SYSTEM_PROMPT = `
-You are Trip Kit's Vibe Curator—an empathetic AI specialist in emotional travel design.
+    # Get latest state from checkpointer
+    state = await self.graph.aget_state(config)
 
-Your mission: Extract user's travel "vibe" (emotional preferences, aesthetic vision, creative intent) through warm, natural conversation.
+    if not state or not state.values:
+        return []
 
-Core Philosophy:
-- Travel is not just about WHERE to go, but HOW it FEELS and how to CAPTURE it
-- Every traveler has a unique aesthetic identity—your job is to discover it
-- Focus on EMOTION over EFFICIENCY, VIBE over ITINERARY
-
-Conversation Guidelines:
-- 🎨 Be warm, enthusiastic, and genuinely curious about their aesthetic vision
-- 🎯 Ask ONE question at a time—deep listening, not interrogation
-- 💡 Provide context: "I'm asking because..." (help them understand the why)
-- 🌟 Use evocative language: "vibe," "aesthetic," "mood," "feel," not just "preference"
-- 📸 Show excitement about creating their unique visual story
-
-Remember: You're not a travel agent—you're a creative collaborator designing their aesthetic experience.
-`;
-
-// Init Node: Welcome user
-async function initNode(state: ConversationState): Promise<Partial<ConversationState>> {
-  const welcomeMessage = `
-Hello! 👋 I'm your Trip Kit travel curator.
-
-I'm here to help you discover hidden gems and create the perfect aesthetic travel experience.
-Think film cameras, vintage vibes, and those Instagram-worthy moments that feel authentic.
-
-To get started, tell me: **What kind of vibe are you feeling for your next trip?**
-
-For example:
-- "Something romantic and nostalgic"
-- "Adventurous but artsy"
-- "Peaceful and introspective"
-
-What speaks to you?
-  `.trim();
-
-  return {
-    messages: [
-      {
-        role: 'assistant',
-        content: welcomeMessage,
-        timestamp: Date.now(),
-      },
-    ],
-    currentStep: 'mood',
-  };
-}
-
-// Mood Node: Extract emotional vibe preference
-async function moodNode(state: ConversationState): Promise<Partial<ConversationState>> {
-  const userMessage = state.messages[state.messages.length - 1].content;
-
-  // Use GPT-4 to extract vibe and generate empathetic response
-  const vibeExtractionPrompt = `
-${VIBE_SYSTEM_PROMPT}
-
-User said: "${userMessage}"
-
-Context: This is the first step in understanding their travel vibe. Their mood/emotional state is the FOUNDATION for all recommendations.
-
-Task:
-1. Extract the user's EMOTIONAL VIBE from their message
-   - Listen for: feelings, emotions, desired atmosphere, energy level
-   - Map to: romantic (intimate, dreamy), adventurous (exciting, bold), nostalgic (timeless, sentimental), peaceful (calm, reflective)
-
-2. Generate a WARM, EMPATHETIC response that:
-   - Acknowledges their vibe with enthusiasm: "Ooh, [mood] vibes—I love that!"
-   - Validates their emotional direction
-   - Smoothly transitions to aesthetic preferences
-   - Ask: "What VISUAL STYLE speaks to you?" (urban streets vs natural landscapes, vintage charm vs modern sleekness)
-
-3. Use evocative language that resonates emotionally
-
-Respond in JSON format:
-{
-  "mood": "romantic|adventurous|nostalgic|peaceful",
-  "emotionalTone": "Brief description of their emotional energy (e.g., 'dreamy and intimate')",
-  "reply": "Your warm, conversational response asking about aesthetic next"
-}
-
-Example reply: "Ooh, romantic vibes—I love that! There's something magical about creating those intimate, dreamy moments while traveling. Now, when you picture this trip visually, what aesthetic speaks to you? Are you drawn to charming urban streets and cafés, or more natural landscapes and open spaces? Vintage, timeless charm or sleek, modern design?"
-  `;
-
-  const response = await model.invoke([
-    new SystemMessage(extractionPrompt),
-  ]);
-
-  const parsed = JSON.parse(response.content);
-
-  return {
-    messages: [
-      {
-        role: 'assistant',
-        content: parsed.reply,
-        timestamp: Date.now(),
-      },
-    ],
-    preferences: {
-      mood: parsed.mood,
-    },
-    currentStep: 'aesthetic',
-  };
-}
-
-// Aesthetic Node: Extract aesthetic preference
-async function aestheticNode(state: ConversationState): Promise<Partial<ConversationState>> {
-  const userMessage = state.messages[state.messages.length - 1].content;
-
-  const extractionPrompt = `
-${SYSTEM_PROMPT}
-
-User's mood: ${state.preferences.mood}
-User said: "${userMessage}"
-
-Task:
-1. Extract aesthetic preference (urban/nature, vintage/modern)
-2. Map to one of: urban, nature, vintage, modern
-3. Generate response acknowledging aesthetic
-4. Ask about trip duration (quick weekend, week-long, extended)
-
-Respond in JSON:
-{
-  "aesthetic": "urban|nature|vintage|modern",
-  "reply": "Your response with duration question"
-}
-  `;
-
-  const response = await model.invoke([new SystemMessage(extractionPrompt)]);
-  const parsed = JSON.parse(response.content);
-
-  return {
-    messages: [{ role: 'assistant', content: parsed.reply, timestamp: Date.now() }],
-    preferences: { aesthetic: parsed.aesthetic },
-    currentStep: 'duration',
-  };
-}
-
-// Duration Node: Extract trip duration
-async function durationNode(state: ConversationState): Promise<Partial<ConversationState>> {
-  const userMessage = state.messages[state.messages.length - 1].content;
-
-  const extractionPrompt = `
-${SYSTEM_PROMPT}
-
-User's preferences so far:
-- Mood: ${state.preferences.mood}
-- Aesthetic: ${state.preferences.aesthetic}
-
-User said: "${userMessage}"
-
-Task:
-1. Extract trip duration
-2. Map to: short (1-3 days), medium (4-7 days), long (8+ days)
-3. Generate response
-4. Ask about specific interests (photography, food, art, history, nature, architecture)
-
-Respond in JSON:
-{
-  "duration": "short|medium|long",
-  "reply": "Your response with interests question"
-}
-  `;
-
-  const response = await model.invoke([new SystemMessage(extractionPrompt)]);
-  const parsed = JSON.parse(response.content);
-
-  return {
-    messages: [{ role: 'assistant', content: parsed.reply, timestamp: Date.now() }],
-    preferences: { duration: parsed.duration },
-    currentStep: 'interests',
-  };
-}
-
-// Interests Node: Extract interests and complete conversation
-async function interestsNode(state: ConversationState): Promise<Partial<ConversationState>> {
-  const userMessage = state.messages[state.messages.length - 1].content;
-
-  const extractionPrompt = `
-${SYSTEM_PROMPT}
-
-User's preferences so far:
-- Mood: ${state.preferences.mood}
-- Aesthetic: ${state.preferences.aesthetic}
-- Duration: ${state.preferences.duration}
-
-User said: "${userMessage}"
-
-Task:
-1. Extract interests (can be multiple)
-2. Map to: photography, food, art, history, nature, architecture
-3. Generate enthusiastic closing message summarizing their preferences
-4. Let them know you're generating personalized recommendations
-
-Respond in JSON:
-{
-  "interests": ["photography", "food", ...],
-  "reply": "Your enthusiastic summary and transition to recommendations"
-}
-  `;
-
-  const response = await model.invoke([new SystemMessage(extractionPrompt)]);
-  const parsed = JSON.parse(response.content);
-
-  // Generate recommendations
-  const recommendations = await generateDestinationRecommendations({
-    ...state.preferences,
-    interests: parsed.interests,
-  });
-
-  return {
-    messages: [{ role: 'assistant', content: parsed.reply, timestamp: Date.now() }],
-    preferences: { interests: parsed.interests },
-    recommendations,
-    currentStep: 'complete',
-  };
-}
-
-// Add nodes to graph
-conversationGraph.addNode('init', initNode);
-conversationGraph.addNode('mood', moodNode);
-conversationGraph.addNode('aesthetic', aestheticNode);
-conversationGraph.addNode('duration', durationNode);
-conversationGraph.addNode('interests', interestsNode);
-
-// Define edges (transitions)
-conversationGraph.addEdge('init', 'mood');
-conversationGraph.addEdge('mood', 'aesthetic');
-conversationGraph.addEdge('aesthetic', 'duration');
-conversationGraph.addEdge('duration', 'interests');
-conversationGraph.addEdge('interests', END);
-
-// Set entry point
-conversationGraph.setEntryPoint('init');
-
-// Compile graph
-export const chatbot = conversationGraph.compile();
+    messages = state.values.get("messages", [])
+    return [
+        {"role": msg.type, "content": msg.content}
+        for msg in messages
+    ]
 ```
 
-#### 3. API Integration
+---
 
-```typescript
-// app/api/chat/route.ts
-import { chatbot } from '@/lib/langgraph/conversation-graph';
-import { ConversationState } from '@/lib/langgraph/types';
+## 🎯 RecommendationAgent: 5-Step Workflow
 
-export async function POST(request: Request) {
-  try {
-    const { sessionId, message, currentStep, preferences } = await request.json();
+### Architecture
 
-    // Initialize or restore state
-    let state: ConversationState = {
-      messages: [],
-      currentStep: currentStep || 'init',
-      preferences: preferences || {},
-      recommendations: null,
-      sessionId,
-      metadata: {
-        startTime: Date.now(),
-        totalMessages: 0,
-      },
-    };
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                  RecommendationAgent Workflow                        │
+│                                                                       │
+│  ┌────────────────┐   ┌──────────────┐   ┌─────────────────────┐    │
+│  │ analyze_prefs  │──►│ build_prompt │──►│ generate_recs       │    │
+│  │                │   │              │   │ (LLM: GPT-4o-mini)  │    │
+│  └────────────────┘   └──────────────┘   └─────────────────────┘    │
+│                                                   │                  │
+│                                                   ▼                  │
+│  ┌────────────────┐   ┌──────────────────────────────────────────┐  │
+│  │ enrich_places  │◄──│ parse_response                           │  │
+│  │ (Google Places)│   │ (JSON extraction)                        │  │
+│  └────────────────┘   └──────────────────────────────────────────┘  │
+│         │                                                            │
+│         ▼                                                            │
+│      [END]                                                           │
+│                                                                       │
+│  Provider: OpenAI (gpt-4o-mini) or Gemini                            │
+│  Output: 3 enriched destinations with Places API data                │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-    // If user sent a message, add it to state
-    if (message) {
-      state.messages.push({
-        role: 'user',
-        content: message,
-        timestamp: Date.now(),
-      });
+### State Schema
+
+```python
+# backend/src/agents/recommendation_agent/state.py
+from typing import TypedDict, Annotated
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+
+class RecommendationInput(TypedDict, total=False):
+    preferences: dict
+    concept: str | None
+    travel_scene: str | None
+    travel_destination: str | None
+    image_generation_context: dict | None
+
+class RecommendationOutput(TypedDict):
+    destinations: list[dict]
+    user_profile: dict
+    status: str
+    is_fallback: bool
+
+class RecommendationState(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+    user_preferences: dict
+    concept: str | None
+    travel_scene: str | None
+    travel_destination: str | None
+    image_generation_context: dict | None
+    llm_provider: str
+    model: str
+    user_profile: dict
+    system_prompt: str
+    user_prompt: str
+    raw_response: str
+    destinations: list[dict]
+    status: str
+    error: str | None
+```
+
+### Workflow Nodes
+
+```python
+# backend/src/agents/recommendation_agent/nodes.py
+
+async def analyze_preferences_node(state: RecommendationState) -> dict:
+    """Step 1: Analyze user preferences and build profile."""
+    preferences = state["user_preferences"]
+    concept = state.get("concept")
+
+    user_profile = {
+        "primary_mood": preferences.get("mood"),
+        "aesthetic_preference": preferences.get("aesthetic"),
+        "trip_duration": preferences.get("duration"),
+        "interests": preferences.get("interests", []),
+        "concept": concept,
+        "travel_scene": state.get("travel_scene"),
+        "travel_destination": state.get("travel_destination"),
     }
 
-    // Run chatbot graph
-    const result = await chatbot.invoke(state);
+    return {"user_profile": user_profile, "status": "analyzing"}
 
-    // Extract latest assistant message
-    const latestMessage = result.messages[result.messages.length - 1];
+async def build_prompt_node(state: RecommendationState) -> dict:
+    """Step 2: Build LLM prompts from user profile."""
+    profile = state["user_profile"]
 
-    return Response.json({
-      reply: latestMessage.content,
-      nextStep: result.currentStep,
-      isComplete: result.currentStep === 'complete',
-      recommendations: result.recommendations,
-      sessionId,
-    });
-  } catch (error) {
-    console.error('Chat error:', error);
-    return Response.json(
-      { error: 'CHAT_ERROR', message: 'Failed to process conversation' },
-      { status: 500 }
-    );
-  }
-}
+    system_prompt = build_system_prompt(profile)
+    user_prompt = build_user_prompt(profile)
+
+    return {
+        "system_prompt": system_prompt,
+        "user_prompt": user_prompt,
+        "status": "prompting",
+    }
+
+async def generate_recommendations_node(
+    state: RecommendationState,
+    provider_type: str = "openai",
+    model: str = "gpt-4o-mini"
+) -> dict:
+    """Step 3: Generate recommendations using LLM."""
+    from ..providers import get_provider
+
+    provider = get_provider(provider_type, model=model)
+
+    response = await provider.generate(
+        system_prompt=state["system_prompt"],
+        user_prompt=state["user_prompt"],
+    )
+
+    return {"raw_response": response, "status": "generating"}
+
+async def parse_response_node(state: RecommendationState) -> dict:
+    """Step 4: Parse JSON response into destinations."""
+    raw = state["raw_response"]
+
+    # Extract JSON from response
+    destinations = parse_destinations_json(raw)
+
+    return {"destinations": destinations, "status": "parsing"}
+
+async def enrich_with_places_node(state: RecommendationState) -> dict:
+    """Step 5: Enrich with Google Places API data."""
+    destinations = state["destinations"]
+
+    enriched = await enrich_destinations_parallel(destinations)
+
+    return {"destinations": enriched, "status": "completed"}
 ```
 
-### Advanced: State Persistence
+### SSE Streaming Implementation
 
-For production, persist conversation state across requests:
+```python
+# backend/src/agents/recommendation_agent/agent.py
 
-```typescript
-// lib/storage/conversation-store.ts
-import { createClient } from 'redis';
+async def recommend_stream(
+    self,
+    input_data: RecommendationInput,
+    thread_id: str = "default",
+) -> AsyncIterator[dict]:
+    """Stream recommendations via SSE."""
 
-const redis = createClient({
-  url: process.env.REDIS_URL,
-});
+    # Run workflow up to parse_response
+    state = await self._run_to_parse(input_data)
+    parsed_destinations = state["destinations"]
 
-await redis.connect();
+    # Parallel enrichment with Google Places API
+    enriched = await enrich_destinations_parallel(parsed_destinations)
 
-export async function saveConversationState(
-  sessionId: string,
-  state: ConversationState
-): Promise<void> {
-  await redis.set(
-    `conversation:${sessionId}`,
-    JSON.stringify(state),
-    { EX: 3600 } // Expire after 1 hour
-  );
-}
+    # Stream each destination
+    for i, dest in enumerate(enriched):
+        yield {
+            "type": "destination",
+            "index": i,
+            "total": len(enriched),
+            "destination": dest,
+            "isFallback": False,
+        }
 
-export async function loadConversationState(
-  sessionId: string
-): Promise<ConversationState | null> {
-  const data = await redis.get(`conversation:${sessionId}`);
-  return data ? JSON.parse(data) : null;
-}
-
-// Use in API route
-const savedState = await loadConversationState(sessionId);
-const state = savedState || initializeNewState(sessionId);
-
-// After processing
-await saveConversationState(sessionId, result);
-```
-
----
-
-## 🧠 OpenAI GPT-4 Integration
-
-### Destination Recommendation System
-
-#### Prompt Engineering Strategy
-
-```typescript
-// lib/ai/prompts/destination-recommendations.ts
-
-export function buildVibeMatchedDestinationPrompt(preferences: UserPreferences): string {
-  const { mood, aesthetic, duration, interests, concept } = preferences;
-
-  return `
-You are Trip Kit's Vibe Matcher—an expert curator specializing in EMOTIONAL TRAVEL DESIGN.
-
-Your mission: Match user's travel vibe to hidden, authentic destinations that RESONATE with their aesthetic identity.
-
-User's Travel Vibe Profile:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎭 Emotional Mood: ${mood} (${getMoodDescription(mood)})
-🎨 Visual Aesthetic: ${aesthetic} (${getAestheticDescription(aesthetic)})
-⏱️ Trip Duration: ${duration} (${getDurationDescription(duration)})
-💫 Interests: ${interests.join(', ')}
-${concept ? `🎬 Selected Concept: ${concept} (${getConceptDescription(concept)})` : ''}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Core Philosophy:
-- This traveler wants VIBE-DRIVEN experiences, not efficiency-driven itineraries
-- They value AESTHETIC ATMOSPHERE over mainstream attractions
-- They're creating a VISUAL STORY, not just visiting places
-- EMOTION and PHOTOGRAPHY are primary motivators
-
-Task: Generate exactly 3 vibe-matched destination recommendations that:
-
-1. **Are NOT mainstream tourist destinations** (avoid top-10 lists, cruise ship ports, overly commercialized areas)
-2. **Highly photogenic** with strong aesthetic appeal for film photography
-3. **Match the user's mood and interests** closely
-4. **Accessible by public transportation** (no remote islands requiring private boats)
-5. **Safe for solo travelers** (safety rating ≥7/10)
-6. **Align with the selected concept** aesthetic (if provided)
-
-For each destination, provide:
-
-- **name**: Specific area/neighborhood, not just city name (e.g., "Alfama District" not "Lisbon")
-- **city**: City name
-- **country**: Country name
-- **description**: 2-3 sentences describing the area, atmosphere, and unique characteristics (100-150 words)
-- **matchReason**: Explain specifically why this matches the user's preferences (50-100 words)
-- **bestTimeToVisit**: Specific months or season with reasoning
-- **photographyScore**: 1-10 rating for photography potential
-- **transportAccessibility**: "easy" (metro/bus readily available), "moderate" (regional trains), or "challenging"
-- **safetyRating**: 1-10 rating
-- **estimatedBudget**: "$" (budget-friendly), "$$" (moderate), "$$$" (expensive)
-- **tags**: Array of 3-5 descriptive keywords
-
-Output as valid JSON array with 3 objects. No additional text.
-
-Example output structure:
-\`\`\`json
-[
-  {
-    "name": "Porto Ribeira District",
-    "city": "Porto",
-    "country": "Portugal",
-    "description": "...",
-    "matchReason": "...",
-    "bestTimeToVisit": "May - June",
-    "photographyScore": 8,
-    "transportAccessibility": "easy",
-    "safetyRating": 9,
-    "estimatedBudget": "$",
-    "tags": ["riverside", "wine", "architecture"]
-  }
-]
-\`\`\`
-`.trim();
-}
-
-// Helper functions
-function getMoodDescription(mood: string): string {
-  const descriptions = {
-    romantic: 'Intimate, dreamy atmosphere with charm',
-    adventurous: 'Exciting exploration and discovery',
-    nostalgic: 'Timeless, classic, evokes memories',
-    peaceful: 'Calm, serene, meditative spaces',
-  };
-  return descriptions[mood] || mood;
-}
-
-function getAestheticDescription(aesthetic: string): string {
-  const descriptions = {
-    urban: 'City streets, architecture, cultural hubs',
-    nature: 'Landscapes, natural beauty, outdoor settings',
-    vintage: 'Retro, historic, timeless character',
-    modern: 'Contemporary, sleek, innovative design',
-  };
-  return descriptions[aesthetic] || aesthetic;
-}
-
-function getDurationDescription(duration: string): string {
-  const descriptions = {
-    short: '1-3 days, quick getaway',
-    medium: '4-7 days, balanced exploration',
-    long: '8+ days, deep immersion',
-  };
-  return descriptions[duration] || duration;
-}
-
-function getConceptDescription(concept: string): string {
-  const descriptions = {
-    flaneur: 'Urban wanderer, literary aesthetic, slow exploration',
-    filmlog: 'Vintage photography, retro analog feel, nostalgic documentation',
-    midnight: 'Artistic time travel, bohemian spirit, cultural depth',
-  };
-  return descriptions[concept] || concept;
-}
-```
-
-#### Implementation
-
-```typescript
-// lib/ai/services/recommendation-service.ts
-import OpenAI from 'openai';
-import { buildDestinationPrompt } from '../prompts/destination-recommendations';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-export async function generateDestinationRecommendations(
-  preferences: UserPreferences
-): Promise<Destination[]> {
-  try {
-    const prompt = buildDestinationPrompt(preferences);
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a travel curation expert specializing in hidden destinations.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.8, // Higher creativity for diverse recommendations
-      max_tokens: 2000,
-      response_format: { type: 'json_object' }, // Ensure JSON output
-    });
-
-    const content = response.choices[0].message.content;
-    const destinations = JSON.parse(content);
-
-    // Validate and add IDs
-    return destinations.map((dest: any, index: number) => ({
-      id: `dest_${Date.now()}_${index}`,
-      ...dest,
-    }));
-  } catch (error) {
-    console.error('Recommendation generation error:', error);
-    throw new Error('Failed to generate recommendations');
-  }
-}
-
-// API Route
-export async function POST(request: Request) {
-  try {
-    const { preferences } = await request.json();
-
-    const destinations = await generateDestinationRecommendations(preferences);
-
-    return Response.json({
-      destinations,
-      generatedAt: new Date().toISOString(),
-      preferences,
-    });
-  } catch (error) {
-    return Response.json(
-      { error: 'RECOMMENDATION_ERROR', message: error.message },
-      { status: 500 }
-    );
-  }
-}
-```
-
-### Hidden Spots Generation
-
-```typescript
-// lib/ai/prompts/hidden-spots.ts
-
-export function buildHiddenSpotsPrompt(
-  destination: Destination,
-  concept: string,
-  preferences: Partial<UserPreferences>
-): string {
-  return `
-You are a local insider with deep knowledge of ${destination.name} in ${destination.city}, ${destination.country}.
-
-Context:
-- Destination: ${destination.name}
-- Selected Concept: ${concept}
-- User Interests: ${preferences.interests?.join(', ')}
-- Photography Focus: High priority
-
-Task: Generate 7-10 **hidden, local-favorite locations** within ${destination.name} that:
-
-1. **Are NOT major tourist attractions** (avoid guidebook clichés, TripAdvisor top lists)
-2. **Highly photogenic** for film aesthetic photography
-3. **Match the "${concept}" concept** aesthetic and vibe
-4. **Known by locals** but relatively unknown to tourists
-5. **Accessible** (no private property or dangerous areas)
-6. **Diverse** (mix of viewpoints, streets, cafes, cultural spots)
-
-For each location:
-
-- **name**: Specific location name (street corner, café, viewpoint, etc.)
-- **address**: Full address or detailed location description
-- **coordinates**: {lat, lng} (if known, otherwise null)
-- **description**: 50-100 words about the location, atmosphere, and why locals love it
-- **photographyTips**: Array of 3-5 specific tips (angles, lighting, composition)
-- **bestTimeToVisit**: Specific time of day or season
-- **estimatedDuration**: How long to spend there ("30min", "1-2hr")
-- **nearbyAmenities**: Cafes, restrooms, shops within 5min walk
-- **accessibilityNotes**: How to get there, any physical challenges
-- **crowdLevel**: "low", "medium", "high"
-- **localTip**: Insider advice that only locals would know
-- **filmRecommendations**: Array of 1-2 film stocks that work well here with reasoning
-- **safetyNotes**: Any safety considerations
-
-Output as valid JSON array. No additional text.
-
-Example structure:
-\`\`\`json
-[
-  {
-    "name": "Secret overlook above Via dell'Amore",
-    "address": "Path 2, Riomaggiore to Manarola",
-    "coordinates": {"lat": 44.0996, "lng": 9.7368},
-    "description": "...",
-    "photographyTips": ["Golden hour: 30min before sunset", "Use f/2.8 for bokeh"],
-    "bestTimeToVisit": "Sunset (7:00 PM)",
-    "estimatedDuration": "45min - 1hr",
-    "nearbyAmenities": ["Trattoria dal Billy (5min walk)"],
-    "accessibilityNotes": "10min uphill hike, uneven terrain",
-    "crowdLevel": "low",
-    "localTip": "Visit on weekdays to avoid tourists",
-    "filmRecommendations": [
-      {"filmStock": "Kodak ColorPlus 200", "reason": "Captures warm coastal light"}
-    ],
-    "safetyNotes": "Stay on marked paths. Cliff edges not fenced."
-  }
-]
-\`\`\`
-`.trim();
-}
-
-// Service implementation
-export async function generateHiddenSpots(
-  destination: Destination,
-  concept: string,
-  preferences: Partial<UserPreferences>
-): Promise<HiddenSpot[]> {
-  const prompt = buildHiddenSpotsPrompt(destination, concept, preferences);
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
-    messages: [
-      { role: 'system', content: 'You are a local travel insider and photographer.' },
-      { role: 'user', content: prompt },
-    ],
-    temperature: 0.9, // High creativity for unique spots
-    max_tokens: 3000,
-    response_format: { type: 'json_object' },
-  });
-
-  const spots = JSON.parse(response.choices[0].message.content);
-
-  return spots.map((spot: any, index: number) => ({
-    id: `spot_${Date.now()}_${index}`,
-    ...spot,
-  }));
-}
+    # Complete event
+    yield {
+        "type": "complete",
+        "total": len(enriched),
+        "userProfile": state["user_profile"],
+        "isFallback": False,
+    }
 ```
 
 ---
 
-## 🎨 DALL-E 3 Image Generation
+## 🎨 ImageAgent: Film Aesthetic Generation
 
-### Prompt Engineering for Film Aesthetic
+### Architecture
 
-```typescript
-// lib/ai/prompts/image-generation.ts
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     ImageAgent Workflow                              │
+│                                                                       │
+│  ┌─────────────────┐   ┌──────────────────┐   ┌──────────────────┐  │
+│  │ extract_keywords│──►│ optimize_prompt  │──►│ generate_image   │  │
+│  │   (MCP Search)  │   │  (Gemini LLM)    │   │ (Gemini Imagen)  │  │
+│  └─────────────────┘   └──────────────────┘   └──────────────────┘  │
+│                                                         │            │
+│                                                         ▼            │
+│                                                      [END]           │
+│                                                                       │
+│  Model: imagen-3.0-generate-002                                       │
+│  Output: Generated image URL with film aesthetic                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-interface ImageGenerationRequest {
-  locationName: string;
-  locationDescription: string;
-  filmStock: string;
-  outfitStyle: string;
-  timeOfDay: string;
-  composition: string;
-  expression: string;
+### State Schema
+
+```python
+# backend/src/agents/image_agent/state.py
+from typing import TypedDict, Annotated, Literal
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+
+class ImageGenerationState(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+    user_prompt: str
+    extracted_keywords: list[str]
+    optimized_prompt: str
+    generated_image_url: str | None
+    image_metadata: dict | None
+    image_model: str
+    status: Literal["pending", "processing", "completed", "failed"]
+    error: str | None
+```
+
+### Workflow Nodes
+
+```python
+# backend/src/agents/image_agent/nodes.py
+
+DEFAULT_IMAGE_MODEL = "imagen-3.0-generate-002"
+
+async def extract_keywords_node(
+    state: ImageGenerationState,
+    search_tools: list
+) -> dict:
+    """Step 1: Extract keywords from user prompt using MCP Search."""
+    user_prompt = state["user_prompt"]
+
+    # Use Search MCP for keyword extraction
+    keywords = await extract_keywords_with_mcp(user_prompt, search_tools)
+
+    return {
+        "extracted_keywords": keywords,
+        "status": "processing",
+    }
+
+async def optimize_prompt_node(state: ImageGenerationState) -> dict:
+    """Step 2: Optimize prompt for film aesthetic generation."""
+    keywords = state["extracted_keywords"]
+    user_prompt = state["user_prompt"]
+
+    # Build optimized prompt with film aesthetic
+    optimized = build_film_aesthetic_prompt(
+        keywords=keywords,
+        user_prompt=user_prompt,
+    )
+
+    return {"optimized_prompt": optimized, "status": "processing"}
+
+async def generate_image_node(
+    state: ImageGenerationState,
+    provider_type: str = "gemini",
+    image_model: str = DEFAULT_IMAGE_MODEL
+) -> dict:
+    """Step 3: Generate image using Gemini Imagen."""
+    from ..providers import get_provider
+
+    provider = get_provider(provider_type, model=image_model)
+
+    result = await provider.generate_image(
+        prompt=state["optimized_prompt"],
+        size="1024x1024",
+    )
+
+    if result.success:
+        return {
+            "generated_image_url": result.url,
+            "image_metadata": {
+                "provider": provider_type,
+                "model": image_model,
+            },
+            "status": "completed",
+        }
+
+    return {
+        "error": result.error,
+        "status": "failed",
+    }
+```
+
+### Film Aesthetic Prompt Engineering
+
+```python
+# backend/src/api_server/services/prompt_builder.py
+
+FILM_STOCK_PROFILES = {
+    "kodak_portra": {
+        "name": "Kodak Portra 400",
+        "characteristics": "Natural skin tones, subtle colors, smooth grain",
+        "color_profile": "Warm-neutral, soft pastels, gentle contrast",
+    },
+    "kodak_colorplus": {
+        "name": "Kodak ColorPlus 200",
+        "characteristics": "Warm saturated tones, fine grain, budget classic",
+        "color_profile": "Golden warmth, enhanced reds/oranges, slight vignette",
+    },
+    "fuji_superia": {
+        "name": "Fujifilm Superia 400",
+        "characteristics": "Vibrant colors, punchy greens, moderate grain",
+        "color_profile": "Cool-neutral, saturated, slight cyan in shadows",
+    },
+    "ilford_hp5": {
+        "name": "Ilford HP5 Plus",
+        "characteristics": "Classic B&W, high contrast, visible grain",
+        "color_profile": "Monochrome, rich blacks, organic texture",
+    },
+    "cinestill_800t": {
+        "name": "CineStill 800T",
+        "characteristics": "Tungsten balanced, cinematic halation, night vibes",
+        "color_profile": "Cool tones, red halation around lights, filmic",
+    },
 }
 
-const FILM_STOCK_PROFILES = {
-  kodak_colorplus: {
-    name: 'Kodak ColorPlus 200',
-    characteristics: 'Warm, saturated tones with slight red-orange shift, fine grain',
-    colorProfile: 'Warm golden tones, enhanced reds and oranges, slight vignetting',
-    referencePhotographers: 'William Eggleston color palette, Stephen Shore saturation',
-  },
-  kodak_portra: {
-    name: 'Kodak Portra 400',
-    characteristics: 'Natural skin tones, subtle colors, smooth grain structure',
-    colorProfile: 'Neutral-warm tones, excellent skin rendering, subtle pastels',
-    referencePhotographers: 'Rinko Kawauchi softness, Ryan Muirhead natural light',
-  },
-  fuji_superia: {
-    name: 'Fujifilm Superia 400',
-    characteristics: 'Vibrant colors, enhanced greens and blues, moderate grain',
-    colorProfile: 'Cool-neutral tones, punchy colors, slight cyan shift in shadows',
-    referencePhotographers: 'Alex Webb color intensity, Saul Leiter mood',
-  },
-  ilford_hp5: {
-    name: 'Ilford HP5 Plus 400',
-    characteristics: 'Classic black and white, high contrast, visible grain texture',
-    colorProfile: 'Monochrome with rich blacks, moderate contrast, organic grain',
-    referencePhotographers: 'Henri Cartier-Bresson composition, Fan Ho contrast',
-  },
-};
+def build_film_aesthetic_prompt(
+    destination: str,
+    concept: str,
+    film_stock: str,
+    outfit_style: str = "",
+    additional_prompt: str = "",
+) -> str:
+    """Build prompt optimized for Gemini Imagen film aesthetic."""
 
-export function buildImageGenerationPrompt(request: ImageGenerationRequest): string {
-  const filmProfile = FILM_STOCK_PROFILES[request.filmStock] || FILM_STOCK_PROFILES.kodak_colorplus;
+    film = FILM_STOCK_PROFILES.get(film_stock, FILM_STOCK_PROFILES["kodak_portra"])
 
-  return `
-Create a hyper-realistic photograph that authentically replicates the look of ${filmProfile.name} film photography.
+    return f"""
+Create a hyper-realistic photograph in the authentic style of {film['name']} film.
 
-SCENE DESCRIPTION:
-${request.locationDescription}
-Location: ${request.locationName}
+LOCATION: {destination}
 
 SUBJECT:
-- A young person (gender-neutral, 20s-30s) wearing ${request.outfitStyle}
-- Holding a vintage 35mm film camera (Canon AE-1 or similar)
-- Natural, candid pose (NOT staged or overly posed)
-- Expression: ${request.expression}
-- Looking ${getGazeDirection(request.composition)} with authentic emotion
+- Young traveler in their 20s-30s
+- Wearing: {outfit_style or "casual travel attire"}
+- Natural, candid pose (not staged)
+- Holding vintage 35mm film camera
+{f'- Action: {additional_prompt}' if additional_prompt else ''}
 
-FILM AESTHETIC - ${filmProfile.name}:
-- Color Profile: ${filmProfile.colorProfile}
-- Grain Texture: ${filmProfile.characteristics}
-- Reference Style: ${filmProfile.referencePhotographers}
-- Slight vignetting (darker corners)
-- Natural film imperfections (subtle dust specs, slight color shifts)
-- Authentic analog depth and dimension
+FILM AESTHETIC ({film['name']}):
+- {film['characteristics']}
+- Color profile: {film['color_profile']}
+- Authentic grain texture
+- Slight vignetting
+- Natural light with film response
 
-COMPOSITION:
-- Subject positioned in ${getCompositionDescription(request.composition)}
-- Background elements: ${getBackgroundGuidance(request.locationDescription)}
-- Depth of field: f/1.8-2.8 (sharp subject, beautifully blurred background)
-- Focal length feel: 35mm or 50mm lens perspective
+CONCEPT: {concept}
+- Capture the essence of {concept} aesthetic
+- Emotional, nostalgic atmosphere
+- Should feel like genuine film photography
 
-LIGHTING - ${request.timeOfDay}:
-${getLightingDescription(request.timeOfDay)}
+TECHNICAL:
+- 35mm or 50mm focal length feel
+- f/1.8-2.8 depth of field
+- Natural lighting
+- NO digital sharpness, NO HDR
+- YES organic grain, YES color shifts
 
-TECHNICAL SPECIFICATIONS:
-- Style: Professional film photography, cinematic, analog warmth
-- Quality: High detail, authentic grain texture
-- Atmosphere: Nostalgic, timeless, emotionally resonant
-- NO digital sharpness, NO HDR look, NO oversaturation
-- YES organic film grain, YES natural color shifts, YES authentic analog feel
-
-MOOD: Intimate, genuine moment captured on film. Should feel like a frame from a personal travel documentary shot by a skilled film photographer in the ${getDecadeReference(request.filmStock)}.
-
-Important: This should look like it was actually shot on ${filmProfile.name} film, scanned at high resolution. Not a digital photo with a filter applied.
-`.trim();
-}
-
-function getGazeDirection(composition: string): string {
-  const directions = {
-    'left-third': 'towards the right (out of frame)',
-    'right-third': 'towards the left (out of frame)',
-    center: 'directly at camera with soft expression',
-  };
-  return directions[composition] || 'naturally into the scene';
-}
-
-function getCompositionDescription(composition: string): string {
-  const descriptions = {
-    'left-third': 'left third of frame (rule of thirds)',
-    'right-third': 'right third of frame (rule of thirds)',
-    center: 'center of frame with balanced negative space',
-  };
-  return descriptions[composition] || 'right third of frame';
-}
-
-function getBackgroundGuidance(locationDescription: string): string {
-  return `${locationDescription.substring(0, 100)}... (softly blurred with beautiful bokeh)`;
-}
-
-function getLightingDescription(timeOfDay: string): string {
-  const lighting = {
-    morning: `
-- Soft, cool morning light (6:30-8:00 AM feel)
-- Gentle directional light from low sun angle
-- Slight haze in atmosphere
-- Cool-neutral color temperature
-- Long, soft shadows
-    `.trim(),
-    noon: `
-- Bright, even overhead light
-- Find shade or diffused light to avoid harsh shadows
-- Warm-neutral color temperature
-- Slightly higher contrast
-    `.trim(),
-    sunset: `
-- Warm, golden light (golden hour: 30min before sunset)
-- Directional warm glow from low sun
-- Rich golden-orange tones
-- Long dramatic shadows
-- Slight backlight creating rim light on subject
-    `.trim(),
-    night: `
-- Low ambient light with practical light sources
-- Warm tungsten or cool fluorescent light mix
-- Slightly underexposed for mood
-- Natural grain more visible
-- High ISO film aesthetic (pushed film look)
-    `.trim(),
-  };
-  return lighting[timeOfDay] || lighting.sunset;
-}
-
-function getDecadeReference(filmStock: string): string {
-  const decades = {
-    kodak_colorplus: '1980s-90s (classic American color film era)',
-    kodak_portra: '2000s-2010s (modern fine art film photography)',
-    fuji_superia: '1990s-2000s (Japanese travel photography era)',
-    ilford_hp5: '1960s-70s (classic photojournalism era)',
-  };
-  return decades[filmStock] || '1980s-90s';
-}
+Output should look like it was actually shot on {film['name']} and scanned at high resolution.
+""".strip()
 ```
 
-### DALL-E 3 API Integration
+---
 
-```typescript
-// lib/ai/services/image-generation-service.ts
-import OpenAI from 'openai';
-import { buildImageGenerationPrompt } from '../prompts/image-generation';
+## 🔧 Provider Strategy Pattern
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+### Base Provider Interface
 
-export async function generateLocationImage(
-  request: ImageGenerationRequest
-): Promise<ImageGenerationResponse> {
-  const startTime = Date.now();
+```python
+# backend/src/providers/base.py
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
-  try {
-    const prompt = buildImageGenerationPrompt(request);
+@dataclass
+class GenerationResult:
+    success: bool
+    content: str | None = None
+    url: str | None = None
+    error: str | None = None
+    provider: str = ""
+    model: str = ""
 
-    const response = await openai.images.generate({
-      model: 'dall-e-3',
-      prompt,
-      n: 1,
-      size: '1024x1024',
-      quality: 'hd', // Use HD quality for better detail
-      style: 'natural', // Natural (photorealistic) vs vivid (artistic)
-    });
+@dataclass
+class ImageGenerationParams:
+    prompt: str
+    size: str = "1024x1024"
+    quality: str = "standard"
+    style: str = "natural"
 
-    const imageUrl = response.data[0].url;
-    const revisedPrompt = response.data[0].revised_prompt; // DALL-E may revise prompt
+class BaseProvider(ABC):
+    @abstractmethod
+    async def generate(self, system_prompt: str, user_prompt: str) -> str:
+        """Generate text response."""
+        pass
+
+    @abstractmethod
+    async def generate_image(self, params: ImageGenerationParams) -> GenerationResult:
+        """Generate image."""
+        pass
+```
+
+### OpenAI Provider
+
+```python
+# backend/src/providers/openai_provider.py
+from openai import AsyncOpenAI
+from .base import BaseProvider, GenerationResult
+
+class OpenAIProvider(BaseProvider):
+    def __init__(self, model: str = "gpt-4o-mini"):
+        self.client = AsyncOpenAI()
+        self.model = model
+
+    async def generate(self, system_prompt: str, user_prompt: str) -> str:
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.8,
+            response_format={"type": "json_object"},
+        )
+        return response.choices[0].message.content
+```
+
+### Gemini Provider (for Image Generation)
+
+```python
+# backend/src/providers/gemini_provider.py
+from google import genai
+from .base import BaseProvider, GenerationResult, ImageGenerationParams
+
+class GeminiImagenProvider(BaseProvider):
+    def __init__(self, model: str = "imagen-3.0-generate-002"):
+        self.client = genai.Client()
+        self.model = model
+
+    async def generate_image(self, params: ImageGenerationParams) -> GenerationResult:
+        try:
+            response = await self.client.aio.models.generate_images(
+                model=self.model,
+                prompt=params.prompt,
+                config=genai.types.GenerateImagesConfig(
+                    number_of_images=1,
+                    output_mime_type="image/png",
+                ),
+            )
+
+            # Upload to storage and get URL
+            image_url = await self._upload_image(response.generated_images[0])
+
+            return GenerationResult(
+                success=True,
+                url=image_url,
+                provider="gemini",
+                model=self.model,
+            )
+        except Exception as e:
+            return GenerationResult(
+                success=False,
+                error=str(e),
+                provider="gemini",
+            )
+```
+
+### Provider Factory
+
+```python
+# backend/src/providers/factory.py
+from .openai_provider import OpenAIProvider
+from .gemini_provider import GeminiImagenProvider, GeminiLLMProvider
+
+def get_provider(provider_type: str, model: str | None = None):
+    """Factory function for provider selection."""
+
+    if provider_type == "openai":
+        return OpenAIProvider(model=model or "gpt-4o-mini")
+
+    elif provider_type == "gemini":
+        if model and "imagen" in model:
+            return GeminiImagenProvider(model=model)
+        return GeminiLLMProvider(model=model or "gemini-2.0-flash")
+
+    raise ValueError(f"Unknown provider: {provider_type}")
+```
+
+---
+
+## 🔌 MCP Server Integration
+
+### Search MCP Server
+
+```python
+# backend/src/mcp_servers/search_server.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("search-mcp")
+
+@mcp.tool()
+async def extract_keywords(prompt: str) -> list[str]:
+    """Extract keywords from user prompt for image generation."""
+    # Use LLM for keyword extraction
+    keywords = await extract_with_llm(prompt)
+    return keywords
+
+@mcp.tool()
+async def search_references(query: str) -> list[dict]:
+    """Search for reference images and locations."""
+    results = await tavily_search(query)
+    return results
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
+```
+
+### Places MCP Server
+
+```python
+# backend/src/mcp_servers/places_server.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("places-mcp")
+
+@mcp.tool()
+async def search_place(query: str, location: str) -> dict:
+    """Search for place details using Google Places API."""
+    from google.maps import places
+
+    result = await places.search_text(
+        query=f"{query} in {location}",
+        language_code="en",
+    )
 
     return {
-      imageUrl,
-      prompt,
-      generationTime: Date.now() - startTime,
-      status: 'success',
-      metadata: {
-        model: 'dall-e-3',
-        size: '1024x1024',
-        quality: 'hd',
-        revisedPrompt,
-      },
-    };
-  } catch (error) {
-    console.error('Image generation error:', error);
-
-    return {
-      imageUrl: '',
-      prompt: buildImageGenerationPrompt(request),
-      generationTime: Date.now() - startTime,
-      status: 'failed',
-      errorMessage: error.message,
-      errorCode: getErrorCode(error),
-    };
-  }
-}
-
-function getErrorCode(error: any): string {
-  if (error.message?.includes('content_policy')) return 'CONTENT_POLICY_VIOLATION';
-  if (error.message?.includes('rate_limit')) return 'RATE_LIMIT_EXCEEDED';
-  if (error.message?.includes('billing')) return 'BILLING_ERROR';
-  return 'GENERATION_ERROR';
-}
-
-// API Route with async handling
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-
-    // Validate request
-    if (!body.locationId || !body.filmStock) {
-      return Response.json(
-        { error: 'VALIDATION_ERROR', message: 'Missing required fields' },
-        { status: 400 }
-      );
+        "name": result.display_name,
+        "address": result.formatted_address,
+        "rating": result.rating,
+        "photos": [p.uri for p in result.photos[:3]],
     }
 
-    // Check if generation should be async (based on load)
-    const shouldRunAsync = await shouldUseAsyncGeneration();
-
-    if (shouldRunAsync) {
-      // Queue for async processing
-      const taskId = await queueImageGeneration(body);
-
-      return Response.json(
-        {
-          taskId,
-          status: 'pending',
-          estimatedWait: 15000,
-          pollUrl: `/api/generate/image/${taskId}`,
-        },
-        { status: 202 }
-      );
-    }
-
-    // Synchronous generation
-    const result = await generateLocationImage(body);
-
-    return Response.json(result);
-  } catch (error) {
-    return Response.json(
-      { error: 'IMAGE_GENERATION_ERROR', message: error.message },
-      { status: 500 }
-    );
-  }
-}
-```
-
-### Async Task Queue (Optional)
-
-```typescript
-// lib/queue/image-generation-queue.ts
-import { Queue, Worker } from 'bullmq';
-
-const imageQueue = new Queue('image-generation', {
-  connection: {
-    host: process.env.REDIS_HOST,
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-  },
-});
-
-export async function queueImageGeneration(
-  request: ImageGenerationRequest
-): Promise<string> {
-  const job = await imageQueue.add('generate-image', request, {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-  });
-
-  return job.id;
-}
-
-// Worker to process queue
-const worker = new Worker(
-  'image-generation',
-  async job => {
-    const result = await generateLocationImage(job.data);
-    return result;
-  },
-  {
-    connection: {
-      host: process.env.REDIS_HOST,
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    },
-  }
-);
-
-// Poll endpoint
-export async function GET(request: Request, { params }: { params: { taskId: string } }) {
-  const job = await imageQueue.getJob(params.taskId);
-
-  if (!job) {
-    return Response.json(
-      { error: 'TASK_NOT_FOUND', message: 'Invalid task ID' },
-      { status: 404 }
-    );
-  }
-
-  const state = await job.getState();
-
-  if (state === 'completed') {
-    const result = job.returnvalue;
-    return Response.json({
-      taskId: params.taskId,
-      status: 'success',
-      ...result,
-    });
-  }
-
-  if (state === 'failed') {
-    return Response.json({
-      taskId: params.taskId,
-      status: 'failed',
-      errorMessage: job.failedReason,
-    });
-  }
-
-  return Response.json({
-    taskId: params.taskId,
-    status: 'pending',
-    progress: job.progress || 0,
-  });
-}
+@mcp.tool()
+async def get_place_photos(place_id: str) -> list[str]:
+    """Get photos for a specific place."""
+    photos = await places.get_photos(place_id)
+    return [p.uri for p in photos]
 ```
 
 ---
 
-## 🛠️ Best Practices
+## 📊 Performance Optimization
 
-### 1. Error Handling
+### Parallel Processing
 
-```typescript
-// lib/ai/utils/error-handler.ts
+```python
+# backend/src/agents/recommendation_agent/nodes.py
+import asyncio
 
-export class AIServiceError extends Error {
-  constructor(
-    public service: 'openai' | 'langgraph',
-    public code: string,
-    message: string,
-    public details?: any
-  ) {
-    super(message);
-    this.name = 'AIServiceError';
-  }
-}
+async def enrich_destinations_parallel(destinations: list[dict]) -> list[dict]:
+    """Enrich all destinations in parallel."""
 
-export async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (attempt === maxRetries) {
-        throw new AIServiceError(
-          'openai',
-          'MAX_RETRIES_EXCEEDED',
-          `Failed after ${maxRetries} attempts`,
-          error
-        );
-      }
+    async def enrich_single(dest: dict) -> dict:
+        place_data = await search_place(
+            query=dest["name"],
+            location=f"{dest['city']}, {dest['country']}",
+        )
+        return {**dest, "placeDetails": place_data}
 
-      // Exponential backoff
-      const delay = baseDelay * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
+    # Run all enrichments in parallel
+    enriched = await asyncio.gather(
+        *[enrich_single(d) for d in destinations],
+        return_exceptions=True,
+    )
 
-  throw new Error('Unexpected error in retry logic');
-}
-
-// Usage
-const destinations = await retryWithBackoff(
-  () => generateDestinationRecommendations(preferences),
-  3,
-  1000
-);
+    return [e for e in enriched if not isinstance(e, Exception)]
 ```
 
-### 2. Rate Limiting & Cost Management
+### Caching Strategy
 
-```typescript
-// lib/ai/utils/rate-limiter.ts
-import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
+```python
+# backend/src/utils/cache.py
+from functools import lru_cache
+import hashlib
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+@lru_cache(maxsize=100)
+def get_cached_recommendations(preferences_hash: str) -> list[dict] | None:
+    """Cache recommendations by preferences hash."""
+    return None  # Implement with Redis for production
 
-// Chat endpoint: 100 requests per hour per IP
-export const chatRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(100, '1 h'),
-  analytics: true,
-});
-
-// Image generation: 20 requests per hour per IP
-export const imageRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(20, '1 h'),
-  analytics: true,
-});
-
-// Usage in API route
-const identifier = getIpAddress(request);
-const { success, limit, remaining, reset } = await imageRateLimiter.limit(identifier);
-
-if (!success) {
-  return Response.json(
-    {
-      error: 'RATE_LIMIT_EXCEEDED',
-      message: 'Too many requests. Please try again later.',
-      retryAfter: reset - Date.now(),
-    },
-    {
-      status: 429,
-      headers: {
-        'X-RateLimit-Limit': limit.toString(),
-        'X-RateLimit-Remaining': remaining.toString(),
-        'X-RateLimit-Reset': reset.toString(),
-      },
-    }
-  );
-}
-```
-
-### 3. Caching Strategy
-
-```typescript
-// lib/ai/utils/cache.ts
-
-// Cache recommendations to reduce API calls
-export async function getCachedRecommendations(
-  preferences: UserPreferences
-): Promise<Destination[] | null> {
-  const cacheKey = `recommendations:${hashPreferences(preferences)}`;
-
-  const cached = await redis.get(cacheKey);
-  if (cached) {
-    console.log('Cache hit for recommendations');
-    return JSON.parse(cached);
-  }
-
-  return null;
-}
-
-export async function setCachedRecommendations(
-  preferences: UserPreferences,
-  recommendations: Destination[]
-): Promise<void> {
-  const cacheKey = `recommendations:${hashPreferences(preferences)}`;
-
-  await redis.set(cacheKey, JSON.stringify(recommendations), {
-    ex: 3600, // Expire after 1 hour
-  });
-}
-
-function hashPreferences(preferences: UserPreferences): string {
-  return createHash('md5')
-    .update(JSON.stringify(preferences))
-    .digest('hex');
-}
-
-// Usage
-const cached = await getCachedRecommendations(preferences);
-if (cached) return cached;
-
-const fresh = await generateDestinationRecommendations(preferences);
-await setCachedRecommendations(preferences, fresh);
-return fresh;
-```
-
-### 4. Prompt Versioning
-
-```typescript
-// lib/ai/prompts/versions.ts
-
-export const PROMPT_VERSIONS = {
-  destinationRecommendation: {
-    v1: buildDestinationPromptV1,
-    v2: buildDestinationPromptV2,
-    current: 'v2',
-  },
-  imageGeneration: {
-    v1: buildImagePromptV1,
-    v2: buildImagePromptV2,
-    current: 'v2',
-  },
-};
-
-export function getPromptVersion(
-  category: keyof typeof PROMPT_VERSIONS,
-  version?: string
-) {
-  const versions = PROMPT_VERSIONS[category];
-  const selectedVersion = version || versions.current;
-  return versions[selectedVersion];
-}
-
-// Usage
-const promptBuilder = getPromptVersion('destinationRecommendation', 'v2');
-const prompt = promptBuilder(preferences);
-```
-
-### 5. Monitoring & Logging
-
-```typescript
-// lib/ai/utils/logger.ts
-
-interface AIMetric {
-  service: 'openai' | 'langgraph';
-  operation: string;
-  duration: number;
-  success: boolean;
-  tokenUsage?: {
-    prompt: number;
-    completion: number;
-    total: number;
-  };
-  cost?: number;
-  error?: string;
-}
-
-export async function logAIMetric(metric: AIMetric): Promise<void> {
-  console.log('[AI Metric]', JSON.stringify(metric));
-
-  // Send to analytics service (e.g., PostHog, Mixpanel)
-  if (typeof window !== 'undefined' && window.analytics) {
-    window.analytics.track('ai_operation', metric);
-  }
-
-  // Store in database for analysis
-  await db.aiMetrics.create({ data: metric });
-}
-
-// Usage wrapper
-export async function withMetrics<T>(
-  service: 'openai' | 'langgraph',
-  operation: string,
-  fn: () => Promise<T>
-): Promise<T> {
-  const startTime = Date.now();
-
-  try {
-    const result = await fn();
-
-    await logAIMetric({
-      service,
-      operation,
-      duration: Date.now() - startTime,
-      success: true,
-    });
-
-    return result;
-  } catch (error) {
-    await logAIMetric({
-      service,
-      operation,
-      duration: Date.now() - startTime,
-      success: false,
-      error: error.message,
-    });
-
-    throw error;
-  }
-}
-
-// Usage
-const recommendations = await withMetrics(
-  'openai',
-  'generate_destinations',
-  () => generateDestinationRecommendations(preferences)
-);
+def hash_preferences(preferences: dict) -> str:
+    """Create hash from preferences for caching."""
+    import json
+    content = json.dumps(preferences, sort_keys=True)
+    return hashlib.md5(content.encode()).hexdigest()
 ```
 
 ---
 
-## 📊 Cost Estimation
-
-### OpenAI Pricing (as of Dec 2025)
-
-| Model | Input | Output | Use Case |
-|-------|-------|--------|----------|
-| GPT-4 Turbo | $0.01/1K tokens | $0.03/1K tokens | Recommendations, conversation |
-| DALL-E 3 (1024x1024, HD) | N/A | $0.080/image | Image generation |
-
-### Estimated Costs per User Journey
-
-**Complete User Flow**:
-- Chat conversation (5-7 exchanges): ~3K tokens input, ~2K output = $0.09
-- Destination recommendations: ~1K input, ~1K output = $0.04
-- Hidden spots (1 destination): ~1K input, ~2K output = $0.07
-- Image generation (1 image): $0.08
-- Styling recommendations: ~1K input, ~1.5K output = $0.055
-
-**Total per user**: ~$0.335
-
-**Monthly cost for 1,000 users**: ~$335
-
-### Cost Optimization Strategies
-
-1. **Caching**: Reduce repeated recommendations by 60-70%
-2. **Prompt optimization**: Reduce token usage by 20-30%
-3. **Lazy image generation**: Only generate when user explicitly requests
-4. **Rate limiting**: Prevent abuse and excessive costs
-
----
-
-## 🧪 Testing AI Integrations
+## 🧪 Testing
 
 ### Unit Tests
 
-```typescript
-// tests/ai/services/recommendation-service.test.ts
-import { generateDestinationRecommendations } from '@/lib/ai/services/recommendation-service';
+```python
+# tests/test_recommendation_agent.py
+import pytest
+from backend.src.agents import RecommendationAgent
 
-describe('Recommendation Service', () => {
-  it('should generate 3 destinations', async () => {
-    const preferences = {
-      mood: 'romantic',
-      aesthetic: 'vintage',
-      duration: 'medium',
-      interests: ['photography'],
-    };
+@pytest.fixture
+def agent():
+    return RecommendationAgent(model="gpt-4o-mini")
 
-    const destinations = await generateDestinationRecommendations(preferences);
+@pytest.mark.asyncio
+async def test_recommend_returns_3_destinations(agent):
+    input_data = {
+        "preferences": {
+            "mood": "romantic",
+            "aesthetic": "vintage",
+        },
+        "concept": "filmlog",
+    }
 
-    expect(destinations).toHaveLength(3);
-    expect(destinations[0]).toHaveProperty('name');
-    expect(destinations[0]).toHaveProperty('photographyScore');
-    expect(destinations[0].photographyScore).toBeGreaterThanOrEqual(1);
-    expect(destinations[0].photographyScore).toBeLessThanOrEqual(10);
-  });
+    result = await agent.recommend(input_data)
 
-  it('should include concept in recommendations', async () => {
-    const preferences = {
-      mood: 'nostalgic',
-      aesthetic: 'vintage',
-      duration: 'short',
-      interests: ['art'],
-      concept: 'filmlog',
-    };
-
-    const destinations = await generateDestinationRecommendations(preferences);
-
-    expect(destinations[0].matchReason).toContain('film');
-  });
-});
+    assert result["status"] == "completed"
+    assert len(result["destinations"]) == 3
+    assert all("name" in d for d in result["destinations"])
 ```
 
-### Mock AI Responses
+### Integration Tests
 
-```typescript
-// tests/mocks/ai-mocks.ts
+```python
+# tests/test_chat_session.py
+import pytest
+from backend.src.agents import ChatAgent
 
-export function mockOpenAI() {
-  jest.mock('openai', () => {
-    return {
-      default: jest.fn().mockImplementation(() => ({
-        chat: {
-          completions: {
-            create: jest.fn().mockResolvedValue({
-              choices: [
-                {
-                  message: {
-                    content: JSON.stringify([
-                      {
-                        name: 'Test Destination',
-                        city: 'Test City',
-                        country: 'Test Country',
-                        description: 'Test description',
-                        matchReason: 'Test reason',
-                        photographyScore: 8,
-                      },
-                    ]),
-                  },
-                },
-              ],
-            }),
-          },
-        },
-        images: {
-          generate: jest.fn().mockResolvedValue({
-            data: [
-              {
-                url: 'https://example.com/test-image.png',
-                revised_prompt: 'Test revised prompt',
-              },
-            ],
-          }),
-        },
-      })),
-    };
-  });
-}
+@pytest.mark.asyncio
+async def test_chat_session_persistence():
+    agent = ChatAgent()
+    session_id = "test-session-123"
+
+    # First message
+    result1 = await agent.chat({
+        "message": "I want a romantic trip to Italy",
+        "session_id": session_id,
+    })
+
+    assert result1["current_step"] == "city"
+
+    # Second message (session continues)
+    result2 = await agent.chat({
+        "message": "Rome sounds perfect",
+        "session_id": session_id,
+    })
+
+    assert result2["collected_data"]["city"] == "Rome"
 ```
 
 ---
 
-## 📚 Additional Resources
+## 📚 Environment Setup
 
-### Official Documentation
-- [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
-- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
-- [LangChain Documentation](https://python.langchain.com/docs/get_started/introduction)
+### Required Environment Variables
 
-### Prompt Engineering
-- [OpenAI Prompt Engineering Guide](https://platform.openai.com/docs/guides/prompt-engineering)
-- [DALL-E Best Practices](https://platform.openai.com/docs/guides/images)
+환경변수 설정은 `.env.sample` 파일을 참조하세요:
 
-### Community Resources
-- [LangChain Discord](https://discord.gg/langchain)
-- [OpenAI Developer Forum](https://community.openai.com/)
+```bash
+# 주요 설정 항목 (자세한 내용은 .env.sample 참조)
+
+# LLM Provider 설정
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+
+# Image Generation 설정
+IMAGE_PROVIDER=gemini
+GEMINI_IMAGE_MODEL=imagen-3.0-generate-002
+
+# Chat Model 설정
+GEMINI_TEXT_MODEL=gemini-2.5-flash
+
+# MCP Server 포트
+SEARCH_MCP_PORT=8050
+IMAGE_MCP_PORT=8051
+```
+
+### Running the Backend
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run FastAPI server
+uvicorn src.api_server.server:app --reload --port 8000
+```
 
 ---
 
-**Document Version**: 1.0.0
-**Last Updated**: 2025-12-03
-**Status**: ✅ Ready for Implementation
+## 📝 Changelog
+
+### v2.0.0 (2025-12-10)
+- 🔄 Complete rewrite for Python LangGraph backend
+- 🔄 DALL-E 3 → Gemini Imagen for image generation
+- ✨ Added 3-agent architecture documentation
+- ✨ Added MCP server integration
+- ✨ Added SSE streaming for recommendations
+- 📝 Updated all code examples to Python
+
+### v1.0.0 (2025-12-03)
+- Initial TypeScript-focused documentation (deprecated)
+
+---
+
+**Document Version**: 2.0.0
+**Last Updated**: 2025-12-10
+**Status**: ✅ Production Ready

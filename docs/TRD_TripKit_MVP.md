@@ -1,14 +1,14 @@
 # Trip Kit - Technical Requirements Document (TRD)
-## MVP Version - 1 Week Sprint
+## MVP Version 2.0
 
 ---
 
 ## 📋 Document Information
 
-- **Document Version**: 1.0.0
-- **Last Updated**: 2025-12-03
-- **Project Timeline**: 1 Week (MVP)
-- **Related Documents**: [PRD_TripKit_MVP.md](./PRD_TripKit_MVP.md)
+- **Document Version**: 2.0.0
+- **Last Updated**: 2025-12-10
+- **Project Timeline**: MVP
+- **Related Documents**: [PRD_TripKit_MVP.md](./PRD_TripKit_MVP.md), [API_Documentation.md](./API_Documentation.md), [AI_Integration_Guide.md](./AI_Integration_Guide.md)
 - **Author**: Engineering Team
 - **Status**: Active Development
 
@@ -19,823 +19,622 @@
 ### High-Level Architecture (Vibe-Driven)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Client Layer                         │
-│                    (Next.js 14+ App Router)                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  Vibe Chat   │  │  Concept     │  │  Hidden      │     │
-│  │  Interface   │  │  Selector    │  │  Spot        │     │
-│  │  (AI Dialog) │  │  (3 Themes)  │  │  Gallery     │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Client Layer                                │
+│                     (Next.js 14+ App Router)                        │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────┐│
+│  │  Vibe Chat   │  │  Concept     │  │  Destinations │  │ TripKit ││
+│  │  Interface   │  │  Selector    │  │  (SSE Stream) │  │ Package ││
+│  └──────────────┘  └──────────────┘  └──────────────┘  └─────────┘│
+└─────────────────────────────────────────────────────────────────────┘
                             │
-                            ↓ (API Routes)
-┌─────────────────────────────────────────────────────────────┐
-│                      API Layer (Next.js)                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ /api/chat    │  │ /api/        │  │ /api/        │     │
-│  │ (Vibe        │  │ recommend    │  │ generate     │     │
-│  │  Extraction) │  │ (Hidden      │  │ (Film        │     │
-│  │              │  │  Spots)      │  │  Aesthetic)  │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│              Service Layer (Vibe Processing)                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  LangGraph   │  │  Vibe-Based  │  │  Film        │     │
-│  │  Vibe        │  │  Destination │  │  Aesthetic   │     │
-│  │  Analyzer    │  │  Recommender │  │  Generator   │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-│          ↓                 ↓                   ↓            │
-│   Mood→Aesthetic    Hidden Local Spots    DALL-E 3         │
-│   →Duration         (Not Tourist Traps)   Film Style       │
-│   →Interests                                                │
-└─────────────────────────────────────────────────────────────┘
+                            ↓ (API Routes → FastAPI)
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Backend Layer (Python FastAPI)                    │
+│  ┌───────────────────────────────────────────────────────────────┐ │
+│  │                    3-Agent Architecture                        │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │ │
+│  │  │  ChatAgent   │  │ Recommendation│  │  ImageAgent  │       │ │
+│  │  │  (LangGraph) │  │    Agent     │  │  (LangGraph) │       │ │
+│  │  │  Human-in-   │  │  (LangGraph) │  │  Gemini      │       │ │
+│  │  │  the-loop    │  │  SSE Stream  │  │  Imagen      │       │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘       │ │
+│  └───────────────────────────────────────────────────────────────┘ │
+│                            │                                        │
+│  ┌───────────────────────────────────────────────────────────────┐ │
+│  │                     MCP Servers                                │ │
+│  │  ┌──────────────┐  ┌──────────────┐                          │ │
+│  │  │  Search MCP  │  │  Places MCP  │                          │ │
+│  │  │  Port: 8050  │  │  Port: 8052  │                          │ │
+│  │  └──────────────┘  └──────────────┘                          │ │
+│  └───────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
                             │
                             ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   External AI Services                       │
-│  ┌──────────────┐  ┌──────────────┐                        │
-│  │   OpenAI     │  │   DALL-E 3   │                        │
-│  │   GPT-4      │  │   (HD Film   │                        │
-│  │   (Vibe NLU) │  │   Aesthetic) │                        │
-│  └──────────────┘  └──────────────┘                        │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                     External AI Services                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │   OpenAI     │  │   Gemini     │  │ Google Maps  │              │
+│  │   GPT-4o     │  │   Imagen     │  │  Places API  │              │
+│  │   (Chat/Rec) │  │  (Images)    │  │              │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
+└─────────────────────────────────────────────────────────────────────┘
                             │
                             ↓
-┌─────────────────────────────────────────────────────────────┐
-│         Storage Layer (MVP: Session-Based Vibe)              │
-│  ┌──────────────┐  ┌──────────────┐                        │
-│  │   Browser    │  │    Redis     │                        │
-│  │  Vibe State  │  │  (Optional)  │                        │
-│  │  (Session)   │  │              │                        │
-│  └──────────────┘  └──────────────┘                        │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│              Storage Layer (MVP: Session-Based Vibe)                 │
+│  ┌──────────────┐  ┌──────────────┐                                │
+│  │   Browser    │  │  MemorySaver │                                │
+│  │  Vibe State  │  │  (LangGraph) │                                │
+│  │  (Zustand)   │  │              │                                │
+│  └──────────────┘  └──────────────┘                                │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Architecture Principles
+
 1. **Vibe-First Design**: All recommendations flow from extracted user vibe (mood + aesthetic + interests)
-2. **AI-Powered Personalization**: GPT-4 analyzes natural language to understand emotional preferences
-3. **Stateless Sessions**: Browser-based vibe state management (no server persistence in MVP)
-4. **Modular Vibe Services**:
-   - **Vibe Analyzer** (LangGraph): Extracts emotional preferences through conversation
-   - **Vibe Matcher** (GPT-4): Matches preferences to hidden local spots
-   - **Vibe Visualizer** (DALL-E 3): Generates film-aesthetic preview images
-5. **External API Abstraction**: Wrap OpenAI APIs for easier testing & prompt versioning
+2. **3-Agent Architecture**: ChatAgent, RecommendationAgent, ImageAgent - each with specialized LangGraph workflow
+3. **Strategy Pattern**: Provider abstraction for OpenAI/Gemini with dynamic selection
+4. **SSE Streaming**: Real-time destination delivery for progressive UI updates
+5. **Human-in-the-loop**: ChatAgent interrupts for user input at each conversation step
+6. **MCP Integration**: Search MCP for keyword extraction, Places MCP for location enrichment
 
 ---
 
 ## 🛠️ Technology Stack
 
-### Frontend
+### Frontend (`front/`)
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Next.js** | 14.2+ | React framework, SSR, API routes |
+| **Next.js** | 14.2+ | React framework, App Router |
 | **React** | 18+ | UI component library |
 | **TypeScript** | 5.0+ | Type safety |
 | **Tailwind CSS** | 3.4+ | Styling framework |
-| **Zustand** | 4.5+ | State management (lightweight) |
+| **Zustand** | 4.5+ | State management (persist middleware) |
 | **React Query** | 5.0+ | Data fetching & caching |
+| **Framer Motion** | 11.0+ | Animations |
 
-### Backend/API
+### Backend (`backend/`)
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Next.js API Routes** | 14.2+ | Backend API endpoints |
-| **LangGraph** | Latest | Conversation state management |
-| **LangChain** | 0.1+ | AI orchestration framework |
-| **OpenAI SDK** | 4.0+ | GPT-4, DALL-E 3 integration |
+| **Python** | 3.12+ | Runtime |
+| **FastAPI** | 0.115+ | Web framework |
+| **LangGraph** | 0.6.4+ | Agent workflow orchestration |
+| **LangChain** | 0.3.27+ | AI framework |
+| **FastMCP** | 2.11+ | MCP server framework |
+| **langchain-mcp-adapters** | 0.1.9+ | MCP integration |
+| **Google Generative AI** | 0.8+ | Gemini Imagen integration |
+| **OpenAI SDK** | 1.0+ | GPT-4 integration |
+| **structlog** | 25.4+ | Structured logging |
+| **Pydantic** | 2.0+ | Data validation |
 
 ### Infrastructure & DevOps
+
 | Technology | Purpose |
 |------------|---------|
-| **Vercel** | Hosting, serverless functions, CI/CD |
+| **Vercel** | Frontend hosting, CI/CD |
+| **Docker** | Backend containerization |
 | **Git/GitHub** | Version control |
-| **ESLint/Prettier** | Code quality |
-| **Jest/React Testing Library** | Unit testing |
+| **ESLint/Prettier** | Code quality (Frontend) |
+| **Ruff/Black** | Code quality (Backend) |
+| **Pytest** | Backend testing |
 
-### Optional/Future
-| Technology | Purpose | Status |
-|------------|---------|--------|
-| **Supabase** | PostgreSQL database | Post-MVP |
-| **Redis** | Session caching | Post-MVP |
-| **MCP Servers** | Context management | Post-MVP |
+### External Services
+
+| Service | Purpose | Model |
+|---------|---------|-------|
+| **OpenAI** | Chat, Recommendations | gpt-4o-mini (default) |
+| **Google Gemini** | Image Generation | imagen-3.0-generate-002 |
+| **Google Maps** | Location enrichment | Places API |
+| **Tavily** | Search (via MCP) | - |
 
 ---
 
 ## 📐 System Design
 
-### 1. Vibe Analysis Engine (LangGraph)
+### 1. ChatAgent - Vibe Extraction Engine
 
-**Purpose**: Extract user's travel "vibe" through natural conversation, transforming unstructured preferences into structured vibe profile.
+**Purpose**: Extract user's travel "vibe" through natural conversation using Human-in-the-loop pattern.
 
-#### State Graph Structure (Vibe Extraction Flow)
-```typescript
-interface ConversationState {
-  step: 'init' | 'mood' | 'aesthetic' | 'duration' | 'interests' | 'complete';
-  messages: Message[];
-  userPreferences: {
-    mood?: 'romantic' | 'adventurous' | 'nostalgic' | 'peaceful';
-    aesthetic?: 'urban' | 'nature' | 'vintage' | 'modern';
-    duration?: 'short' | 'medium' | 'long';
-    interests?: ('photography' | 'food' | 'art' | 'history' | 'nature')[];
-  };
-  vibeProfile?: {
-    emotionalTone: string;
-    visualStyle: string;
-    energyLevel: 'calm' | 'moderate' | 'high';
-    photoFocus: boolean;
-  };
-  recommendations?: Destination[];
-}
+#### State Definition (Python)
 
-type StateTransition = (state: ConversationState) => ConversationState;
+```python
+class ChatState(TypedDict):
+    """ChatAgent 상태 정의"""
+    messages: Annotated[list[BaseMessage], add_messages]
+    session_id: str
+    user_id: str | None
+    current_step: ConversationStep
+    next_step: ConversationStep
+    collected_data: CollectedData
+    rejected_items: RejectedItems
+    suggested_options: list[str]
+    assistant_reply: str
+    is_complete: bool
+    status: Literal["active", "completed", "error"]
+
+class CollectedData(TypedDict, total=False):
+    """수집된 사용자 선호도"""
+    travel_destination: str    # 여행 지역
+    travel_scene: str          # 꿈꾸는 여행 장면
+    travel_companion: str      # 동행자
+    travel_duration: str       # 여행 기간
+    travel_budget: str         # 예산
+    travel_style: str          # 여행 스타일
+    special_requests: str      # 특별 요청
 ```
 
-#### LangGraph Vibe Extraction Flow
+#### LangGraph Workflow
+
 ```
 [START]
   ↓
-[Welcome Node] → Warm greeting, explain vibe-based curation
+[process_message] → LLM으로 사용자 메시지 처리
   ↓
-[Mood Node] → "What vibe are you feeling for this trip?"
-              Extract: romantic/adventurous/nostalgic/peaceful
-              Why: Emotional foundation for all recommendations
+[route_after_process] → 조건부 분기
   ↓
-[Aesthetic Node] → "What visual style speaks to you?"
-                   Extract: urban/nature/vintage/modern
-                   Why: Determines location aesthetics and film style
-  ↓
-[Duration Node] → "How much time do you have?"
-                  Extract: short (1-3d) / medium (4-7d) / long (8+d)
-                  Why: Scope of recommendations and depth
-  ↓
-[Interests Node] → "What draws you in? Photography? Food? Art?"
-                   Extract: Array of interests
-                   Why: Fine-tune spot recommendations and styling
-  ↓
-[Vibe Synthesis Node] → Combine all preferences into "Vibe Profile"
-                        Generate: emotionalTone + visualStyle + energyLevel
-  ↓
-[Recommendation Node] → GPT-4 generates 3 vibe-matched destinations
-                        Each with matchReason explaining vibe alignment
-  ↓
-[END] → User proceeds to concept selection
+  ├── is_complete=True → [finalize] → END
+  │
+  └── is_complete=False → END (wait_input)
+                          ↑
+                          │ Human-in-the-loop
+                          │ (사용자 입력 대기)
+                          ↓
+                     [Resume with new message]
 ```
 
-#### Key Functions
-```typescript
-// Core LangGraph setup
-const conversationGraph = new StateGraph({
-  channels: {
-    messages: { reducer: messagesReducer },
-    preferences: { reducer: preferencesReducer },
-  }
-});
+#### Conversation Steps
 
-// Add nodes
-conversationGraph.addNode('mood', moodNode);
-conversationGraph.addNode('aesthetic', aestheticNode);
-conversationGraph.addNode('duration', durationNode);
-conversationGraph.addNode('interests', interestsNode);
-conversationGraph.addNode('analyze', analyzeNode);
-conversationGraph.addNode('recommend', recommendNode);
+```python
+ConversationStep = Literal[
+    "greeting",           # 인사 및 시작
+    "travel_destination", # 여행 지역
+    "travel_scene",       # 꿈꾸는 장면
+    "travel_companion",   # 동행자
+    "travel_duration",    # 기간
+    "travel_budget",      # 예산
+    "travel_style",       # 스타일
+    "special_requests",   # 특별 요청
+    "confirmation",       # 확인
+    "complete"           # 완료
+]
+```
 
-// Define transitions
-conversationGraph.addEdge('mood', 'aesthetic');
-conversationGraph.addEdge('aesthetic', 'duration');
-conversationGraph.addEdge('duration', 'interests');
-conversationGraph.addEdge('interests', 'analyze');
-conversationGraph.addEdge('analyze', 'recommend');
+#### Agent Implementation
 
-// Compile
-const chatbot = conversationGraph.compile();
+```python
+class ChatAgent:
+    """Human-in-the-loop을 지원하는 Chat Agent"""
+
+    def __init__(
+        self,
+        llm_provider: Any = None,
+        checkpointer: BaseCheckpointSaver | None = None,
+    ):
+        # LLM Provider 설정 (기본: Gemini)
+        if llm_provider is None:
+            from ...providers.gemini_provider import GeminiLLMProvider
+            self._llm_provider = GeminiLLMProvider()
+        else:
+            self._llm_provider = llm_provider
+
+        # Checkpointer 설정 (세션 상태 저장)
+        self._checkpointer = checkpointer or MemorySaver()
+
+        # 그래프 빌드
+        self._graph = self._build_graph()
+
+    async def chat(
+        self,
+        input_data: ChatInput,
+        thread_id: str | None = None,
+    ) -> ChatOutput:
+        """대화 처리 (세션 복구 지원)"""
+        session_id = thread_id or input_data["session_id"]
+        config = {"configurable": {"thread_id": session_id}}
+
+        # 기존 상태 확인
+        existing_state = await self._get_state(session_id)
+
+        if existing_state and existing_state.get("messages"):
+            # 기존 대화 재개
+            result = await self._resume_conversation(...)
+        else:
+            # 새 대화 시작
+            result = await self._start_conversation(...)
+
+        return self._format_output(result, session_id)
 ```
 
 ---
 
-### 2. Recommendation Engine
+### 2. RecommendationAgent - Destination Matching
 
-#### Destination Recommendation Algorithm
+**Purpose**: Generate vibe-matched destination recommendations with SSE streaming.
 
-**Input Processing**:
-```typescript
-interface UserPreferences {
-  mood: 'romantic' | 'adventurous' | 'nostalgic' | 'peaceful';
-  aesthetic: 'urban' | 'nature' | 'vintage' | 'modern';
-  duration: 'short' | 'medium' | 'long'; // 1-3, 4-7, 8+ days
-  interests: ('photography' | 'food' | 'art' | 'history' | 'nature')[];
-  concept?: 'flaneur' | 'filmlog' | 'midnight'; // Selected later
-}
+#### State Definition (Python)
+
+```python
+class RecommendationState(TypedDict):
+    """RecommendationAgent 상태"""
+    messages: Annotated[list[BaseMessage], add_messages]
+    user_preferences: dict
+    concept: str | None
+    travel_scene: str | None
+    travel_destination: str | None
+    image_generation_context: dict | None
+    llm_provider: str
+    model: str
+    user_profile: dict
+    system_prompt: str
+    user_prompt: str
+    raw_response: str
+    destinations: list[dict]
+    status: Literal["pending", "processing", "completed", "failed"]
+    error: str | None
 ```
 
-**GPT-4 Prompt Template**:
-```typescript
-const DESTINATION_PROMPT = `
-You are a local travel expert specializing in hidden, non-touristy destinations.
+#### LangGraph Workflow
 
-User Preferences:
-- Mood: {mood}
-- Aesthetic: {aesthetic}
-- Duration: {duration} days
-- Interests: {interests}
-- Selected Concept: {concept}
-
-Generate 3 unique destination recommendations that:
-1. Are NOT in top-10 tourist lists
-2. Offer photogenic, aesthetic locations
-3. Accessible by public transport
-4. Safe for solo travelers
-5. Match the user's mood and interests
-6. Align with the selected concept aesthetic
-
-For each destination, provide:
-- Name & city/region
-- 2-3 sentence description
-- Why it matches user preferences
-- Best time to visit
-- Photography potential (1-10 score)
-
-Output as JSON array.
-`;
+```
+[START]
+  ↓
+[analyze_preferences] → 사용자 선호도 분석 및 프로필 생성
+  ↓
+[build_prompt] → LLM 프롬프트 구성
+  ↓
+[generate_recommendations] → OpenAI/Gemini로 추천 생성
+  ↓
+[parse_response] → JSON 파싱 및 검증
+  ↓
+[enrich_with_places] → Google Places API 정보 보강
+  ↓
+[END]
 ```
 
-**Output Structure**:
-```typescript
-interface Destination {
-  id: string;
-  name: string;
-  city: string;
-  country: string;
-  description: string;
-  matchReason: string;
-  bestTimeToVisit: string;
-  photographyScore: number; // 1-10
-  transportAccessibility: 'easy' | 'moderate' | 'challenging';
-  safetyRating: number; // 1-10
-  hiddenSpots: HiddenSpot[]; // Populated after selection
-}
+#### SSE Streaming Implementation
+
+```python
+async def recommend_stream(
+    self,
+    input_data: RecommendationInput,
+    thread_id: str = "default",
+) -> AsyncIterator[dict]:
+    """2단계 SSE 스트리밍
+
+    1단계: LLM 응답 파싱 후 초기 여행지 전송
+    2단계: Google Places enrichment 후 상세 정보 추가
+    """
+    # === 1단계: LLM 응답까지 실행 ===
+    state = await analyze_preferences_node(state)
+    state = await build_prompt_node(state)
+    state = await generate_recommendations_node(state, ...)
+    state = await parse_response_node(state)
+
+    # === 2단계: Places API enrichment (병렬 처리) ===
+    enriched_destinations = await enrich_destinations_parallel(
+        state.get("destinations", [])
+    )
+
+    # === SSE 스트리밍 ===
+    for i, dest in enumerate(enriched_destinations):
+        yield {
+            "type": "destination",
+            "index": i,
+            "total": len(enriched_destinations),
+            "destination": dest,
+        }
+
+    yield {
+        "type": "complete",
+        "total": len(enriched_destinations),
+    }
 ```
 
-#### Hidden Spot Generation
+#### Destination Structure
 
-**Triggered When**: User selects a destination
+```python
+class Destination(TypedDict):
+    """여행지 정보"""
+    id: str
+    name: str
+    city: str
+    country: str
+    description: str
+    matchReason: str
+    bestTimeToVisit: str
+    photographyScore: int  # 1-10
+    transportAccessibility: str  # easy | moderate | challenging
+    safetyRating: int  # 1-10
+    placeDetails: PlaceDetails | None  # Google Places API
 
-**GPT-4 Prompt**:
-```typescript
-const HIDDEN_SPOTS_PROMPT = `
-Generate 5-10 hidden, local-favorite locations in {destination} that:
-- Are NOT major tourist attractions
-- Highly photogenic (film aesthetic)
-- Match concept: {concept}
-- Accessible and safe
-
-For each location:
-- Name & exact address
-- Description (50-100 words)
-- Best photography time (golden hour, blue hour, etc.)
-- Camera angles/tips
-- Estimated visit duration
-- Nearby amenities (cafes, restrooms)
-
-Output as JSON array.
-`;
-```
-
-**Output Structure**:
-```typescript
-interface HiddenSpot {
-  id: string;
-  name: string;
-  address: string;
-  coordinates?: { lat: number; lng: number };
-  description: string;
-  photographyTips: string[];
-  bestTimeToVisit: string;
-  estimatedDuration: string; // "30min", "1-2hr"
-  nearbyAmenities: string[];
-  accessibilityNotes: string;
-  filmRecommendations: FilmRecommendation[];
-}
+class PlaceDetails(TypedDict):
+    """Google Places API 정보"""
+    formatted_address: str | None
+    geometry: dict | None
+    photos: list[str]
+    rating: float | None
+    user_ratings_total: int | None
+    opening_hours: dict | None
+    website: str | None
+    price_level: int | None
 ```
 
 ---
 
-### 3. Image Generation Service
+### 3. ImageAgent - Film Aesthetic Generation
 
-#### Architecture
-```typescript
-interface ImageGenerationRequest {
-  locationId: string;
-  locationName: string;
-  locationDescription: string;
-  userPhoto?: string; // Base64 or URL (optional for MVP)
-  selectedConcept: 'flaneur' | 'filmlog' | 'midnight';
-  filmStock: 'kodak_colorplus' | 'fuji_superia' | 'ilford_hp5';
-  outfitStyle: string;
-}
+**Purpose**: Generate film-aesthetic preview images using Gemini Imagen.
 
-interface ImageGenerationResponse {
-  imageUrl: string;
-  prompt: string;
-  generationTime: number; // ms
-  status: 'success' | 'pending' | 'failed';
-  errorMessage?: string;
-}
+#### State Definition (Python)
+
+```python
+class ImageGenerationState(TypedDict):
+    """ImageAgent 상태"""
+    messages: Annotated[list[BaseMessage], add_messages]
+    user_prompt: str
+    extracted_keywords: list[str]
+    optimized_prompt: str
+    generated_image_url: str | None
+    image_metadata: dict | None
+    image_model: str
+    status: Literal["pending", "extracting", "generating", "completed", "failed"]
+    error: str | None
 ```
 
-#### DALL-E 3 Integration
+#### LangGraph Workflow
 
-**Prompt Engineering Template**:
-```typescript
-const IMAGE_PROMPT_TEMPLATE = `
-Create a high-quality photograph in the style of {filmStock} film.
-
-Scene Description:
-{locationDescription}
-
-Subject:
-- {genderNeutralPerson} wearing {outfitStyle}
-- Holding a vintage film camera (35mm)
-- Natural, candid pose
-- Looking {direction} with {expression}
-
-Film Aesthetic:
-- Film grain texture
-- {filmStock} color profile
-- Slight vignetting
-- Natural lighting ({timeOfDay})
-- Bokeh in background
-
-Composition:
-- Subject positioned {composition}
-- {backgroundElements}
-- Depth of field: f/1.8
-- Authentic analog film look
-
-Style: Cinematic, nostalgic, highly detailed, professional film photography
-`;
-
-// Example filled template
-const examplePrompt = `
-Create a high-quality photograph in the style of Kodak ColorPlus 200 film.
-
-Scene Description:
-A hidden Parisian bookshop alley with vintage storefronts and cobblestone streets, early morning light filtering through the buildings.
-
-Subject:
-- A young woman wearing a beige trench coat and vintage beret
-- Holding a vintage film camera (35mm Olympus)
-- Natural, candid pose
-- Looking at a bookshop window with gentle smile
-
-Film Aesthetic:
-- Fine grain texture
-- Warm, saturated Kodak ColorPlus color profile
-- Slight vignetting
-- Natural morning light
-- Bokeh from background street lights
-
-Composition:
-- Subject positioned in right third of frame
-- Bookshop window and vintage books in background
-- Depth of field: f/1.8
-- Authentic analog film look
-
-Style: Cinematic, nostalgic, highly detailed, professional film photography
-`;
+```
+[START]
+  ↓
+[extract_keywords] → Search MCP로 키워드 추출
+  ↓
+[optimize_prompt] → 이미지 생성용 프롬프트 최적화
+  ↓
+[generate_image] → Gemini Imagen으로 이미지 생성
+  ↓
+[END]
 ```
 
-**API Integration**:
-```typescript
-import OpenAI from 'openai';
+#### Gemini Imagen Integration
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+```python
+# 기본 모델
+DEFAULT_IMAGE_MODEL = "imagen-3.0-generate-002"
 
-async function generateImage(request: ImageGenerationRequest): Promise<ImageGenerationResponse> {
-  const prompt = buildPrompt(request);
+async def generate_image_node(
+    state: ImageGenerationState,
+    provider_type: str | None = None,
+    image_model: str | None = None
+) -> ImageGenerationState:
+    """이미지 생성 노드"""
+    actual_model = image_model or state.get("image_model") or DEFAULT_IMAGE_MODEL
 
-  try {
-    const response = await openai.images.generate({
-      model: 'dall-e-3',
-      prompt,
-      n: 1,
-      size: '1024x1024',
-      quality: 'hd',
-      style: 'natural', // More photorealistic
-    });
+    # Provider 가져오기 (Strategy Pattern)
+    provider = get_provider(provider_type or "gemini", model=actual_model)
+
+    # 이미지 생성 파라미터
+    params = ImageGenerationParams(
+        prompt=state["optimized_prompt"],
+        size="1024x1024",
+        quality="standard",
+        style="vivid"
+    )
+
+    # 이미지 생성 실행
+    result = await provider.generate(params)
 
     return {
-      imageUrl: response.data[0].url,
-      prompt,
-      generationTime: Date.now() - startTime,
-      status: 'success',
-    };
-  } catch (error) {
-    return {
-      imageUrl: '',
-      prompt,
-      generationTime: Date.now() - startTime,
-      status: 'failed',
-      errorMessage: error.message,
-    };
-  }
-}
+        **state,
+        "generated_image_url": result.url,
+        "image_metadata": {
+            "provider": result.provider,
+            "model": actual_model,
+            "revised_prompt": result.revised_prompt,
+        },
+        "status": "completed"
+    }
 ```
 
 ---
 
-### 4. Styling & Film Recommendations
+### 4. Provider Strategy Pattern
 
-#### Recommendation Engine Logic
+**Purpose**: Abstract LLM/Image providers for flexible switching.
 
-**Input**: Selected location + concept
-**Output**: Complete styling package
+#### Provider Interface
 
-```typescript
-interface StylingRecommendation {
-  cameraModel: string;
-  filmStock: FilmStock;
-  cameraSettings: CameraSettings;
-  outfitSuggestions: OutfitSuggestion;
-  props: Prop[];
-  bestAngles: Angle[];
-}
+```python
+class LLMProvider(ABC):
+    """LLM Provider 추상 인터페이스"""
 
-interface FilmStock {
-  name: string;
-  iso: number;
-  colorProfile: string;
-  characteristics: string[];
-  sampleImages: string[]; // URLs to reference images
-  priceRange: string; // "$", "$$", "$$$"
-}
+    @property
+    @abstractmethod
+    def provider_name(self) -> str:
+        """프로바이더 이름"""
+        pass
 
-interface CameraSettings {
-  aperture: string; // "f/1.8", "f/2.8"
-  shutterSpeed: string; // "1/250s", "1/125s"
-  iso: number;
-  focusMode: 'auto' | 'manual';
-  meteringMode: string;
-  lightingNotes: string;
-}
+    @abstractmethod
+    async def chat(self, params: ChatParams) -> ChatResult:
+        """채팅 완료"""
+        pass
 
-interface OutfitSuggestion {
-  colorPalette: string[]; // Hex codes
-  style: string; // "Casual vintage", "Bohemian chic"
-  specificItems: string[]; // "Beige trench coat", "Wide-brim hat"
-  seasonalNotes: string;
-}
+class ImageProvider(ABC):
+    """Image Provider 추상 인터페이스"""
 
-interface Prop {
-  name: string;
-  purpose: string; // "Add vintage atmosphere", "Frame composition"
-  whereToFind: string; // "Local bookstores", "Flea markets"
-  optional: boolean;
-}
+    @property
+    @abstractmethod
+    def provider_name(self) -> str:
+        """프로바이더 이름"""
+        pass
 
-interface Angle {
-  description: string;
-  visualExample?: string; // URL to reference image
-  technique: string; // "Rule of thirds", "Leading lines"
-  bestLighting: string;
-}
+    @abstractmethod
+    async def generate(self, params: ImageGenerationParams) -> ImageGenerationResult:
+        """이미지 생성"""
+        pass
 ```
 
-**Concept-Specific Recommendations**:
+#### Provider Factory
 
-```typescript
-const CONCEPT_MAPPINGS = {
-  flaneur: {
-    cameras: ['Leica M6', 'Contax G2', 'Olympus OM-1'],
-    filmStocks: ['Kodak Portra 400', 'Ilford HP5'],
-    outfitStyle: 'Minimalist urban, neutral tones',
-    props: ['Vintage map', 'Pocket notebook', 'Film canister'],
-    angles: ['Street-level perspective', 'Reflections in windows', 'Leading lines']
-  },
-  filmlog: {
-    cameras: ['Canon AE-1', 'Pentax K1000', 'Nikon FM2'],
-    filmStocks: ['Kodak ColorPlus 200', 'Fujifilm Superia 400'],
-    outfitStyle: 'Retro casual, warm colors',
-    props: ['Polaroid camera', 'Vintage postcards', 'Retro sunglasses'],
-    angles: ['Rule of thirds', 'Bokeh backgrounds', 'Golden hour glow']
-  },
-  midnight: {
-    cameras: ['Hasselblad 500C/M', 'Rolleiflex', 'Mamiya 7'],
-    filmStocks: ['Kodak Tri-X 400', 'Ilford Delta 3200'],
-    outfitStyle: 'Artistic, dramatic, layered textures',
-    props: ['Antique book', 'Vintage glasses', 'Artist portfolio'],
-    angles: ['Low-key lighting', 'Dramatic shadows', 'Artistic bokeh']
-  }
-};
+```python
+def get_provider(
+    provider_type: str | None = None,
+    **kwargs
+) -> LLMProvider | ImageProvider:
+    """Provider 팩토리 함수
+
+    Args:
+        provider_type: "openai" | "gemini"
+        **kwargs: 프로바이더별 추가 설정
+
+    Returns:
+        적절한 Provider 인스턴스
+    """
+    provider_type = provider_type or os.getenv("LLM_PROVIDER", "openai")
+
+    if provider_type == "openai":
+        return OpenAIProvider(**kwargs)
+    elif provider_type == "gemini":
+        return GeminiProvider(**kwargs)
+    else:
+        raise ValueError(f"Unknown provider: {provider_type}")
 ```
 
-**AI-Enhanced Recommendation**:
-```typescript
-const STYLING_PROMPT = `
-Given location: {locationName} ({locationDescription})
-Selected concept: {concept}
-Time of visit: {timeOfDay}
+#### Available Providers
 
-Generate detailed photography and styling recommendations:
-
-1. Film Camera: Suggest 1-2 models that match the concept and location aesthetic
-2. Film Stock: Recommend specific film (brand, ISO) with color profile notes
-3. Camera Settings: Aperture, shutter speed, ISO for optimal results
-4. Outfit Styling: Color palette, specific items, seasonal considerations
-5. Props: 2-3 small items to enhance composition
-6. Best Angles: 3-5 specific composition techniques with lighting notes
-
-Prioritize:
-- Authenticity over trends
-- Practical, achievable recommendations
-- Concept alignment
-- Location-specific considerations
-
-Output as structured JSON.
-`;
-```
+| Provider | Type | Models | Purpose |
+|----------|------|--------|---------|
+| OpenAI | LLM | gpt-4o, gpt-4o-mini | Chat, Recommendations |
+| Gemini | LLM | gemini-2.5-flash | Chat (alternative) |
+| Gemini | Image | imagen-3.0-generate-002 | Film aesthetic images |
 
 ---
 
 ## 🔌 API Specification
 
-### Base URL
+### Base URLs
+
 ```
-Development: http://localhost:3000/api
-Production: https://tripkit.vercel.app/api
+Frontend Dev: http://localhost:3000
+Frontend Prod: https://tripkit.vercel.app
+
+Backend Dev: http://localhost:8000
+Backend Prod: https://api.tripkit.app
 ```
 
 ### Authentication
+
 **MVP**: No authentication required (public endpoints)
-**Future**: JWT-based authentication
+**Future**: JWT-based authentication with Supabase Auth
 
 ---
 
 ### Endpoints
 
-#### 1. **POST /api/chat**
-**Purpose**: Process conversation messages and advance chatbot state
+#### 1. **POST /chat**
+
+**Purpose**: Process conversation and advance chatbot state (session-based)
 
 **Request**:
-```typescript
+```json
 {
-  "sessionId": "uuid-v4", // Client-generated session ID
-  "message": "I'm looking for a romantic, vintage vibe trip",
-  "currentStep": "mood" | "aesthetic" | "duration" | "interests",
+  "message": "서울에서 낭만적인 여행을 하고 싶어요",
+  "session_id": "session_abc123",
+  "user_id": "user_optional_id"
+}
+```
+
+**Response**:
+```json
+{
+  "reply": "서울에서 낭만적인 여행을 계획하시는군요! 어떤 장면을 꿈꾸고 계세요?",
+  "currentStep": "travel_destination",
+  "nextStep": "travel_scene",
+  "isComplete": false,
+  "collectedData": {
+    "travel_destination": "서울"
+  },
+  "rejectedItems": {},
+  "suggestedOptions": ["카페에서 책 읽기", "야경 감상", "골목길 산책"]
+}
+```
+
+#### 2. **GET /chat/history/{session_id}**
+
+**Purpose**: Retrieve conversation history
+
+**Response**:
+```json
+{
+  "history": [
+    {"role": "user", "content": "안녕하세요"},
+    {"role": "assistant", "content": "안녕하세요! 어떤 여행을 꿈꾸시나요?"}
+  ],
+  "sessionId": "session_abc123"
+}
+```
+
+#### 3. **POST /recommendations/destinations/stream**
+
+**Purpose**: SSE streaming destination recommendations
+
+**Request**:
+```json
+{
   "preferences": {
     "mood": "romantic",
     "aesthetic": "vintage"
-    // Accumulated preferences
+  },
+  "concept": "filmlog",
+  "travelScene": "카페에서 책 읽기",
+  "travelDestination": "유럽",
+  "imageGenerationContext": {
+    "filmType": "Kodak Portra 400",
+    "cameraModel": "Leica M6"
   }
 }
 ```
 
-**Response**:
-```typescript
-{
-  "reply": "Great! Romantic and vintage sounds wonderful. Are you more drawn to urban settings or natural landscapes?",
-  "nextStep": "aesthetic",
-  "isComplete": false,
-  "recommendations": null // Only populated when isComplete=true
-}
+**SSE Response**:
+```
+data: {"type":"destination","index":0,"total":3,"destination":{...}}
+
+data: {"type":"destination","index":1,"total":3,"destination":{...}}
+
+data: {"type":"destination","index":2,"total":3,"destination":{...}}
+
+data: {"type":"complete","total":3,"userProfile":{...}}
 ```
 
-**Error Responses**:
-```typescript
-// 400 Bad Request
-{
-  "error": "Invalid step transition",
-  "message": "Cannot transition from 'duration' to 'mood'"
-}
+#### 4. **POST /generate/image**
 
-// 500 Internal Server Error
-{
-  "error": "OpenAI API error",
-  "message": "Rate limit exceeded"
-}
-```
-
----
-
-#### 2. **POST /api/recommendations/destinations**
-**Purpose**: Generate destination recommendations based on user preferences
+**Purpose**: Generate film-aesthetic preview image with Gemini Imagen
 
 **Request**:
-```typescript
+```json
 {
-  "preferences": {
-    "mood": "romantic",
-    "aesthetic": "vintage",
-    "duration": "medium",
-    "interests": ["photography", "art"],
-    "concept": "filmlog" // Selected after destinations
-  }
-}
-```
-
-**Response**:
-```typescript
-{
-  "destinations": [
-    {
-      "id": "dest_1",
-      "name": "Cinque Terre Hidden Trails",
-      "city": "Cinque Terre",
-      "country": "Italy",
-      "description": "Lesser-known hiking paths connecting colorful cliffside villages, away from cruise ship crowds.",
-      "matchReason": "Combines romantic coastal views with vintage Italian charm, perfect for film photography.",
-      "bestTimeToVisit": "Late April - Early June (spring bloom, fewer tourists)",
-      "photographyScore": 9,
-      "transportAccessibility": "moderate",
-      "safetyRating": 9
-    },
-    // 2 more destinations...
-  ],
-  "generatedAt": "2025-12-03T10:30:00Z"
-}
-```
-
----
-
-#### 3. **POST /api/recommendations/hidden-spots**
-**Purpose**: Generate hidden spot recommendations for a selected destination
-
-**Request**:
-```typescript
-{
-  "destinationId": "dest_1",
+  "prompt": "A cozy Parisian cafe with vintage film aesthetic",
   "concept": "filmlog",
-  "preferences": {
-    "mood": "romantic",
-    "interests": ["photography"]
-  }
+  "filmStock": "kodak_portra_400",
+  "style": "cinematic"
 }
 ```
 
 **Response**:
-```typescript
+```json
 {
-  "hiddenSpots": [
-    {
-      "id": "spot_1",
-      "name": "Via dell'Amore Secret Overlook",
-      "address": "Path 2, Riomaggiore to Manarola",
-      "coordinates": { "lat": 44.0996, "lng": 9.7368 },
-      "description": "A quiet observation point above the famous lovers' path, offering panoramic views without the crowds. Local fishermen know this spot for stunning sunset backdrops.",
-      "photographyTips": [
-        "Golden hour: 30min before sunset",
-        "Use wide aperture (f/1.8-2.8) for bokeh",
-        "Frame with olive trees in foreground"
-      ],
-      "bestTimeToVisit": "Sunrise (6:30 AM) or Sunset (7:00 PM)",
-      "estimatedDuration": "45min - 1hr",
-      "nearbyAmenities": ["Trattoria dal Billy (5min walk)", "Public restroom at trail entrance"],
-      "accessibilityNotes": "Requires 10min uphill hike, uneven terrain",
-      "filmRecommendations": [
-        {
-          "filmStock": "Kodak ColorPlus 200",
-          "reason": "Captures warm coastal light beautifully"
-        }
-      ]
-    },
-    // 4-9 more spots...
-  ]
-}
-```
-
----
-
-#### 4. **POST /api/generate/image**
-**Purpose**: Generate AI preview image for a location
-
-**Request**:
-```typescript
-{
-  "locationId": "spot_1",
-  "locationName": "Via dell'Amore Secret Overlook",
-  "locationDescription": "Quiet observation point with panoramic coastal views...",
-  "concept": "filmlog",
-  "filmStock": "kodak_colorplus",
-  "outfitStyle": "Vintage denim jacket, white sundress",
-  "userPhoto": "data:image/jpeg;base64,..." // Optional
-}
-```
-
-**Response**:
-```typescript
-{
-  "imageUrl": "https://oaidalleapiprodscus.blob.core.windows.net/...",
-  "prompt": "Create a high-quality photograph in the style of Kodak ColorPlus 200...",
-  "generationTime": 12500, // ms
-  "status": "success"
-}
-```
-
-**Async Variation** (if generation takes >15s):
-```typescript
-// Initial response (202 Accepted)
-{
-  "taskId": "task_abc123",
-  "status": "pending",
-  "estimatedWait": 15000 // ms
-}
-
-// Poll endpoint: GET /api/generate/image/:taskId
-{
-  "taskId": "task_abc123",
-  "status": "success" | "pending" | "failed",
-  "imageUrl": "...", // Only when status=success
-  "errorMessage": "..." // Only when status=failed
-}
-```
-
----
-
-#### 5. **POST /api/recommendations/styling**
-**Purpose**: Get film camera, outfit, and prop recommendations
-
-**Request**:
-```typescript
-{
-  "locationId": "spot_1",
-  "concept": "filmlog",
-  "timeOfDay": "sunset",
-  "weather": "clear" // optional
-}
-```
-
-**Response**:
-```typescript
-{
-  "cameraModel": "Canon AE-1",
-  "filmStock": {
-    "name": "Kodak ColorPlus 200",
-    "iso": 200,
-    "colorProfile": "Warm, saturated tones with slight red-orange shift",
-    "characteristics": ["Affordable", "Versatile", "Great for travel"],
-    "sampleImages": [
-      "https://filmsamples.com/kodak-colorplus-1.jpg",
-      "https://filmsamples.com/kodak-colorplus-2.jpg"
-    ],
-    "priceRange": "$"
+  "imageUrl": "https://storage.googleapis.com/...",
+  "optimizedPrompt": "A cozy Parisian cafe, warm Kodak Portra 400 tones...",
+  "extractedKeywords": ["cafe", "paris", "vintage", "cozy"],
+  "metadata": {
+    "provider": "gemini",
+    "model": "imagen-3.0-generate-002",
+    "generationTime": 3500
   },
-  "cameraSettings": {
-    "aperture": "f/2.8",
-    "shutterSpeed": "1/250s",
-    "iso": 200,
-    "focusMode": "auto",
-    "meteringMode": "Center-weighted",
-    "lightingNotes": "Sunset provides soft, warm directional light. Meter for highlights to avoid overexposure."
-  },
-  "outfitSuggestions": {
-    "colorPalette": ["#F5E6D3", "#8B7355", "#FFFFFF"],
-    "style": "Casual vintage, relaxed coastal",
-    "specificItems": [
-      "Vintage denim jacket (light wash)",
-      "White linen sundress",
-      "Woven straw hat",
-      "Leather sandals"
-    ],
-    "seasonalNotes": "Layers for evening breeze, breathable fabrics"
-  },
-  "props": [
-    {
-      "name": "Vintage Polaroid camera",
-      "purpose": "Add nostalgic element to composition",
-      "whereToFind": "Bring from home or local vintage shops",
-      "optional": false
-    },
-    {
-      "name": "Woven basket with flowers",
-      "purpose": "Coastal aesthetic enhancement",
-      "whereToFind": "Local markets in Riomaggiore",
-      "optional": true
-    }
-  ],
-  "bestAngles": [
-    {
-      "description": "Rule of thirds with horizon line",
-      "visualExample": "https://angles.com/rule-of-thirds-sunset.jpg",
-      "technique": "Position subject in right third, ocean in left two-thirds",
-      "bestLighting": "15-30min before sunset (golden hour)"
-    },
-    {
-      "description": "Bokeh with coastal background",
-      "visualExample": "https://angles.com/bokeh-coast.jpg",
-      "technique": "Use f/1.8-2.8, focus on subject, blur colorful village background",
-      "bestLighting": "Soft diffused light (cloudy or shade)"
-    },
-    {
-      "description": "Leading lines with path",
-      "visualExample": "https://angles.com/leading-lines.jpg",
-      "technique": "Use path/railings to lead eye to subject",
-      "bestLighting": "Any, but avoid harsh midday sun"
-    }
-  ]
+  "status": "completed"
 }
 ```
 
@@ -843,18 +642,10 @@ Production: https://tripkit.vercel.app/api
 
 ## 💾 Data Models
 
-### TypeScript Interfaces
+### Frontend Types (TypeScript)
 
 ```typescript
 // Core Entities
-interface User {
-  sessionId: string; // MVP: Browser sessionStorage
-  preferences: UserPreferences;
-  conversationState: ConversationState;
-  selectedDestination?: string; // Destination ID
-  selectedSpots: string[]; // Array of spot IDs
-}
-
 interface UserPreferences {
   mood: 'romantic' | 'adventurous' | 'nostalgic' | 'peaceful';
   aesthetic: 'urban' | 'nature' | 'vintage' | 'modern';
@@ -874,227 +665,217 @@ interface Destination {
   photographyScore: number;
   transportAccessibility: 'easy' | 'moderate' | 'challenging';
   safetyRating: number;
-  hiddenSpots: HiddenSpot[];
+  placeDetails?: PlaceDetails;
 }
 
-interface HiddenSpot {
-  id: string;
-  name: string;
-  address: string;
-  coordinates?: Coordinates;
-  description: string;
-  photographyTips: string[];
-  bestTimeToVisit: string;
-  estimatedDuration: string;
-  nearbyAmenities: string[];
-  accessibilityNotes: string;
-  filmRecommendations: FilmRecommendation[];
-}
-
-interface StylingRecommendation {
-  cameraModel: string;
-  filmStock: FilmStock;
-  cameraSettings: CameraSettings;
-  outfitSuggestions: OutfitSuggestion;
-  props: Prop[];
-  bestAngles: Angle[];
+interface ChatResponse {
+  reply: string;
+  currentStep: ConversationStep;
+  nextStep: ConversationStep;
+  isComplete: boolean;
+  collectedData: CollectedData;
+  rejectedItems: RejectedItems;
+  suggestedOptions: string[];
 }
 
 // Supporting Types
 type Interest = 'photography' | 'food' | 'art' | 'history' | 'nature' | 'architecture';
 type Concept = 'flaneur' | 'filmlog' | 'midnight';
+type ConversationStep =
+  | 'greeting' | 'travel_destination' | 'travel_scene'
+  | 'travel_companion' | 'travel_duration' | 'travel_budget'
+  | 'travel_style' | 'special_requests' | 'confirmation' | 'complete';
+```
 
-interface Coordinates {
-  lat: number;
-  lng: number;
-}
+### Backend Models (Pydantic)
 
-interface FilmRecommendation {
-  filmStock: string;
-  reason: string;
-}
+```python
+# Request Models
+class ChatRequest(BaseModel):
+    message: str
+    session_id: str
+    user_id: str | None = None
 
-interface FilmStock {
-  name: string;
-  iso: number;
-  colorProfile: string;
-  characteristics: string[];
-  sampleImages: string[];
-  priceRange: '$' | '$$' | '$$$';
-}
+class RecommendationRequest(BaseModel):
+    preferences: dict[str, Any] = {}
+    concept: str | None = None
+    travel_scene: str | None = None
+    travel_destination: str | None = None
+    image_generation_context: dict[str, Any] | None = None
 
-interface CameraSettings {
-  aperture: string;
-  shutterSpeed: string;
-  iso: number;
-  focusMode: 'auto' | 'manual';
-  meteringMode: string;
-  lightingNotes: string;
-}
+class ImageGenerationRequest(BaseModel):
+    prompt: str
+    concept: str | None = None
+    film_stock: str | None = None
+    style: str = "vivid"
 
-interface OutfitSuggestion {
-  colorPalette: string[];
-  style: string;
-  specificItems: string[];
-  seasonalNotes: string;
-}
+# Response Models
+class ChatResponse(BaseModel):
+    reply: str
+    currentStep: str
+    nextStep: str
+    isComplete: bool
+    collectedData: dict[str, Any]
+    rejectedItems: dict[str, Any]
+    suggestedOptions: list[str]
+    sessionId: str
 
-interface Prop {
-  name: string;
-  purpose: string;
-  whereToFind: string;
-  optional: boolean;
-}
-
-interface Angle {
-  description: string;
-  visualExample?: string;
-  technique: string;
-  bestLighting: string;
-}
+class ImageGenerationResponse(BaseModel):
+    imageUrl: str | None
+    optimizedPrompt: str
+    extractedKeywords: list[str]
+    metadata: dict[str, Any]
+    status: str
+    error: str | None = None
 ```
 
 ---
 
 ## 🔐 Security Considerations
 
-### API Security (MVP)
+### API Security
+
 1. **Rate Limiting**:
    - 100 requests/hour per IP for chat endpoints
    - 20 image generations/hour per IP
-   - Use `vercel-rate-limit` or similar
+   - SSE streams: 10 concurrent connections per IP
 
 2. **Input Validation**:
-   - Sanitize all user inputs
-   - Validate JSON schemas with Zod
+   - Pydantic models for all request validation
+   - Sanitize user inputs before LLM calls
    - Prevent prompt injection attacks
 
 3. **API Key Protection**:
-   - Store OpenAI keys in environment variables
+   - Store all keys in environment variables
    - Never expose keys in client-side code
-   - Rotate keys if compromised
+   - Use separate keys for development/production
 
 4. **CORS**:
    - Restrict to production domain only
    - Development: Allow localhost:3000
 
-### Example Rate Limiting
-```typescript
-import rateLimit from 'express-rate-limit';
+### Environment Variables
 
-const chatLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 100,
-  message: 'Too many requests, please try again later.',
-});
+모든 환경 변수 설정은 프로젝트 루트의 `.env.sample` 파일을 참조하세요.
 
-const imageLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 20,
-  message: 'Image generation limit reached.',
-});
-
-// Apply to routes
-app.use('/api/chat', chatLimiter);
-app.use('/api/generate/image', imageLimiter);
-```
+주요 설정 항목:
+- `LLM_PROVIDER`: LLM 프로바이더 선택 (openai/gemini)
+- `LLM_MODEL`: 사용할 LLM 모델
+- `IMAGE_PROVIDER`: 이미지 생성 프로바이더
+- `GEMINI_IMAGE_MODEL`: Gemini Imagen 모델
+- `SEARCH_MCP_PORT`: Search MCP 서버 포트
+- `PLACES_MCP_PORT`: Places MCP 서버 포트
 
 ---
 
 ## 🚀 Performance Optimization
 
 ### Performance Targets
+
 | Metric | Target | Critical? |
 |--------|--------|-----------|
-| API Response Time (chat) | <3s | Yes |
-| API Response Time (recommendations) | <5s | Yes |
+| Chat API Response | <3s | Yes |
+| SSE First Destination | <5s | Yes |
+| SSE Complete (3 destinations) | <10s | Yes |
 | Image Generation | <15s | No (nice-to-have) |
 | Page Load Time | <3s | Yes |
-| Time to Interactive (TTI) | <5s | Yes |
 
 ### Optimization Strategies
 
-#### 1. Caching
-```typescript
-// Client-side caching with React Query
-const { data: destinations } = useQuery({
-  queryKey: ['destinations', preferences],
-  queryFn: () => fetchDestinations(preferences),
-  staleTime: 1000 * 60 * 10, // 10 minutes
-  cacheTime: 1000 * 60 * 30, // 30 minutes
-});
+#### 1. SSE Streaming for Progressive UI
 
-// Server-side caching (optional Redis)
-import redis from 'redis';
+```python
+# Backend: 2-phase streaming
+async def recommend_stream(...) -> AsyncIterator[dict]:
+    # Phase 1: LLM response (3-5s)
+    destinations = await generate_recommendations(...)
 
-const cache = redis.createClient({
-  url: process.env.REDIS_URL,
-});
+    # Phase 2: Places enrichment (parallel, 2-3s)
+    enriched = await enrich_destinations_parallel(destinations)
 
-async function getCachedDestinations(preferencesHash: string) {
-  const cached = await cache.get(`destinations:${preferencesHash}`);
-  if (cached) return JSON.parse(cached);
-
-  const destinations = await generateDestinations();
-  await cache.setEx(`destinations:${preferencesHash}`, 3600, JSON.stringify(destinations));
-
-  return destinations;
-}
+    # Stream each destination
+    for dest in enriched:
+        yield {"type": "destination", "destination": dest}
 ```
 
-#### 2. Lazy Loading
 ```typescript
-// Code splitting for heavy components
-const ImageGenerator = lazy(() => import('@/components/ImageGenerator'));
-const StylingRecommendations = lazy(() => import('@/components/StylingRecommendations'));
-
-// Usage
-<Suspense fallback={<LoadingSpinner />}>
-  <ImageGenerator locationId={spotId} />
-</Suspense>
-```
-
-#### 3. API Response Optimization
-```typescript
-// Stream responses for long-running operations
-export async function POST(request: Request) {
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller) {
-      // Send progress updates
-      controller.enqueue(encoder.encode('data: {"status": "processing", "progress": 25}\n\n'));
-
-      const result = await generateRecommendations();
-
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify(result)}\n\n`));
-      controller.close();
-    },
+// Frontend: Progressive rendering
+const loadDestinationsStream = async () => {
+  const response = await fetch("/api/recommendations/destinations/stream", {
+    method: "POST",
+    body: JSON.stringify({ preferences, concept }),
   });
 
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
-}
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const lines = decoder.decode(value).split("\n");
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        const event = JSON.parse(line.slice(6));
+        if (event.type === "destination") {
+          addDestination(event.destination);  // 실시간 UI 업데이트
+        }
+      }
+    }
+  }
+};
 ```
 
-#### 4. Image Optimization
-```typescript
-// Use Next.js Image component
-import Image from 'next/image';
+#### 2. Parallel Places API Enrichment
 
-<Image
-  src={imageUrl}
-  alt="Location preview"
-  width={1024}
-  height={1024}
-  loading="lazy"
-  placeholder="blur"
-  blurDataURL="data:image/..."
-/>
+```python
+async def enrich_destinations_parallel(
+    destinations: list[dict]
+) -> list[dict]:
+    """여러 여행지를 병렬로 enrichment"""
+    tasks = [
+        enrich_single_destination(dest)
+        for dest in destinations
+    ]
+    return await asyncio.gather(*tasks)
+```
+
+#### 3. Client-Side Caching
+
+```typescript
+// Zustand with persist middleware
+const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      sessionId: '',
+      messages: [],
+      collectedData: {},
+      // ... actions
+    }),
+    {
+      name: 'tripkit-chat-storage',
+      partialize: (state) => ({
+        sessionId: state.sessionId,
+        collectedData: state.collectedData,
+      }),
+    }
+  )
+);
+```
+
+#### 4. Session Recovery
+
+```python
+# Backend: MemorySaver for session state
+class ChatAgent:
+    def __init__(self, checkpointer=None):
+        self._checkpointer = checkpointer or MemorySaver()
+
+    async def _get_state(self, session_id: str) -> ChatState | None:
+        """저장된 상태 조회"""
+        config = {"configurable": {"thread_id": session_id}}
+        snapshot = await self._graph.aget_state(config)
+        return snapshot.values if snapshot else None
 ```
 
 ---
@@ -1106,102 +887,78 @@ import Image from 'next/image';
 ```
         ┌────────────┐
         │    E2E     │  10% - Critical user flows
-        │   Tests    │
+        │   Tests    │  (Playwright)
         └────────────┘
        ┌──────────────┐
-       │ Integration  │  30% - API endpoints, service integration
-       │    Tests     │
+       │ Integration  │  30% - API endpoints, agents
+       │    Tests     │  (Pytest + httpx)
        └──────────────┘
       ┌────────────────┐
-      │  Unit Tests    │  60% - Pure functions, utilities
-      └────────────────┘
+      │  Unit Tests    │  60% - Nodes, utilities
+      └────────────────┘  (Pytest + Jest)
 ```
 
-### Unit Tests (Jest)
-```typescript
-// tests/services/recommendation.test.ts
-import { generateDestinations } from '@/services/recommendation';
+### Backend Tests (Pytest)
 
-describe('Recommendation Service', () => {
-  it('should generate 3 destinations for valid preferences', async () => {
-    const preferences = {
-      mood: 'romantic',
-      aesthetic: 'vintage',
-      duration: 'medium',
-      interests: ['photography'],
-    };
+```python
+# tests/test_chat_agent.py
+import pytest
+from src.agents.chat_agent import ChatAgent
 
-    const destinations = await generateDestinations(preferences);
+@pytest.fixture
+def chat_agent():
+    return ChatAgent()
 
-    expect(destinations).toHaveLength(3);
-    expect(destinations[0]).toHaveProperty('name');
-    expect(destinations[0]).toHaveProperty('photographyScore');
-  });
+@pytest.mark.asyncio
+async def test_new_conversation(chat_agent):
+    """새 대화 시작 테스트"""
+    result = await chat_agent.chat({
+        "message": "안녕하세요",
+        "session_id": "test_session_1"
+    })
 
-  it('should throw error for invalid preferences', async () => {
-    const invalidPreferences = { mood: 'invalid' };
+    assert result["reply"]
+    assert result["currentStep"] == "greeting"
+    assert result["isComplete"] is False
 
-    await expect(generateDestinations(invalidPreferences)).rejects.toThrow();
-  });
-});
+@pytest.mark.asyncio
+async def test_session_recovery(chat_agent):
+    """세션 복구 테스트"""
+    # 첫 번째 메시지
+    await chat_agent.chat({
+        "message": "서울에서 여행하고 싶어요",
+        "session_id": "test_session_2"
+    })
+
+    # 두 번째 메시지 (세션 재개)
+    result = await chat_agent.chat({
+        "message": "카페에서 책 읽기",
+        "session_id": "test_session_2"  # 동일한 세션 ID
+    })
+
+    assert "travel_destination" in result["collectedData"]
 ```
 
-### Integration Tests (Supertest)
+### Frontend Tests (Jest)
+
 ```typescript
-// tests/api/chat.test.ts
-import request from 'supertest';
-import app from '@/app';
+// tests/components/ChatContainer.test.tsx
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import ChatContainer from '@/components/chat/ChatContainer';
 
-describe('POST /api/chat', () => {
-  it('should process chat message and return next step', async () => {
-    const response = await request(app)
-      .post('/api/chat')
-      .send({
-        sessionId: 'test-session-1',
-        message: 'I want a romantic trip',
-        currentStep: 'mood',
-        preferences: {},
-      })
-      .expect(200);
+describe('ChatContainer', () => {
+  it('should send message and display AI response', async () => {
+    render(<ChatContainer />);
 
-    expect(response.body).toHaveProperty('reply');
-    expect(response.body).toHaveProperty('nextStep');
-    expect(response.body.isComplete).toBe(false);
+    const input = screen.getByPlaceholderText('메시지를 입력하세요');
+    await userEvent.type(input, '서울에서 여행하고 싶어요');
+    await userEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/어떤 장면을 꿈꾸/)).toBeInTheDocument();
+    });
   });
-});
-```
-
-### E2E Tests (Playwright)
-```typescript
-// e2e/user-flow.spec.ts
-import { test, expect } from '@playwright/test';
-
-test('complete user journey', async ({ page }) => {
-  // 1. Landing page
-  await page.goto('/');
-  await expect(page.locator('h1')).toContainText('Trip Kit');
-
-  // 2. Start chat
-  await page.click('button:has-text("Start Planning")');
-  await page.fill('input[placeholder="Type your message..."]', 'I want a romantic trip');
-  await page.click('button:has-text("Send")');
-
-  // 3. Wait for AI response
-  await expect(page.locator('.ai-message')).toBeVisible({ timeout: 5000 });
-
-  // 4. Complete conversation (simplified)
-  await page.fill('input', 'vintage');
-  await page.click('button:has-text("Send")');
-
-  // 5. Select concept
-  await page.click('div:has-text("Film Log")');
-
-  // 6. View recommendations
-  await expect(page.locator('.destination-card')).toHaveCount(3);
-
-  // 7. Select destination and view spots
-  await page.click('.destination-card:first-child');
-  await expect(page.locator('.hidden-spot')).toHaveCount.greaterThanOrEqual(5);
 });
 ```
 
@@ -1209,9 +966,56 @@ test('complete user journey', async ({ page }) => {
 
 ## 📦 Deployment
 
-### Vercel Deployment
+### Docker Deployment (Backend)
 
-#### Configuration (`vercel.json`)
+```dockerfile
+# backend/Dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.api_server.server:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  search-mcp:
+    build: ./backend
+    command: python -m src.mcp_servers.search_server
+    ports:
+      - "8050:8050"
+    env_file:
+      - .env
+
+  places-mcp:
+    build: ./backend
+    command: python -m src.mcp_servers.places_server
+    ports:
+      - "8052:8052"
+    env_file:
+      - .env
+```
+
+### Vercel Deployment (Frontend)
+
 ```json
 {
   "version": 2,
@@ -1222,52 +1026,42 @@ test('complete user journey', async ({ page }) => {
     }
   ],
   "env": {
-    "OPENAI_API_KEY": "@openai-api-key",
-    "NODE_ENV": "production"
-  },
-  "functions": {
-    "api/**": {
-      "memory": 3008,
-      "maxDuration": 60
-    }
+    "BACKEND_URL": "@backend-url",
+    "AGENT_API_URL": "@agent-api-url"
   }
 }
-```
-
-#### Environment Variables
-```bash
-# .env.local (development)
-OPENAI_API_KEY=sk-...
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-# Production (Vercel dashboard)
-OPENAI_API_KEY=sk-... (encrypted)
-NEXT_PUBLIC_APP_URL=https://tripkit.vercel.app
-```
-
-#### Deployment Steps
-```bash
-# 1. Install Vercel CLI
-npm install -g vercel
-
-# 2. Login
-vercel login
-
-# 3. Deploy to preview
-vercel
-
-# 4. Deploy to production
-vercel --prod
-
-# 5. Set environment variables
-vercel env add OPENAI_API_KEY production
 ```
 
 ---
 
 ## 📊 Monitoring & Observability
 
-### Vercel Analytics
+### Structured Logging (Backend)
+
+```python
+import structlog
+
+logger = structlog.get_logger(__name__)
+
+# Agent 로깅
+logger.info(
+    "Starting recommendation generation",
+    concept=input_data.get("concept"),
+    destination=input_data.get("travel_destination"),
+    provider=actual_provider,
+    model=actual_model
+)
+
+# 에러 로깅
+logger.error(
+    "Chat processing error",
+    session_id=session_id,
+    error=str(e),
+)
+```
+
+### Frontend Analytics
+
 ```typescript
 // app/layout.tsx
 import { Analytics } from '@vercel/analytics/react';
@@ -1284,401 +1078,111 @@ export default function RootLayout({ children }) {
 }
 ```
 
-### Error Tracking (Sentry - Optional)
-```typescript
-// sentry.config.ts
-import * as Sentry from '@sentry/nextjs';
-
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  tracesSampleRate: 0.1,
-  environment: process.env.NODE_ENV,
-});
-
-// Usage in API routes
-export async function POST(request: Request) {
-  try {
-    // ... logic
-  } catch (error) {
-    Sentry.captureException(error);
-    return Response.json({ error: 'Internal error' }, { status: 500 });
-  }
-}
-```
-
-### Custom Metrics
-```typescript
-// lib/metrics.ts
-export function trackRecommendationGenerated(destinationCount: number, duration: number) {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'recommendation_generated', {
-      destination_count: destinationCount,
-      generation_time_ms: duration,
-    });
-  }
-}
-
-export function trackImageGenerated(success: boolean, duration: number) {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'image_generated', {
-      success,
-      generation_time_ms: duration,
-    });
-  }
-}
-```
-
 ---
 
 ## 🔄 CI/CD Pipeline
 
-### GitHub Actions Workflow
+### GitHub Actions
 
-```yaml
-# .github/workflows/ci-cd.yml
-name: CI/CD Pipeline
+CI/CD 파이프라인은 GitHub Actions를 사용하여 구성합니다.
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
+**주요 워크플로우**:
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+1. **테스트 (Frontend)**:
+   - Node.js 20 설정
+   - npm ci, lint, type-check, test 실행
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+2. **테스트 (Backend)**:
+   - Python 3.12 설정
+   - pytest 실행
 
-      - name: Install dependencies
-        run: npm ci
+3. **배포 (Frontend)**:
+   - Vercel Action을 사용하여 자동 배포
+   - main 브랜치 push 시 프로덕션 배포
 
-      - name: Run linter
-        run: npm run lint
-
-      - name: Run type check
-        run: npm run type-check
-
-      - name: Run unit tests
-        run: npm run test:unit
-
-      - name: Run integration tests
-        run: npm run test:integration
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
-  deploy-preview:
-    needs: test
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-
-  deploy-production:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-```
-
----
-
-## 📝 Development Workflow
-
-### Git Branch Strategy
-```
-main (production)
-  ├── develop (staging)
-  │   ├── feature/chat-interface
-  │   ├── feature/image-generation
-  │   └── feature/recommendations
-  └── hotfix/critical-bug
-```
-
-### Commit Convention
-```bash
-# Format: <type>(<scope>): <subject>
-
-feat(chat): implement LangGraph conversation flow
-fix(api): resolve recommendation timeout issue
-docs(readme): update API documentation
-test(e2e): add complete user journey test
-refactor(services): extract recommendation logic
-```
-
-### Development Scripts
-```json
-{
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "test": "jest --watch",
-    "test:unit": "jest --testPathPattern=tests/unit",
-    "test:integration": "jest --testPathPattern=tests/integration",
-    "test:e2e": "playwright test",
-    "test:coverage": "jest --coverage",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "prepare": "husky install"
-  }
-}
-```
-
----
-
-## 🐛 Error Handling Strategy
-
-### Error Types & Handling
-
-```typescript
-// lib/errors.ts
-export class TripKitError extends Error {
-  constructor(
-    public code: string,
-    public statusCode: number,
-    message: string,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = 'TripKitError';
-  }
-}
-
-export class OpenAIError extends TripKitError {
-  constructor(message: string, details?: unknown) {
-    super('OPENAI_ERROR', 503, message, details);
-  }
-}
-
-export class ValidationError extends TripKitError {
-  constructor(message: string, details?: unknown) {
-    super('VALIDATION_ERROR', 400, message, details);
-  }
-}
-
-export class RateLimitError extends TripKitError {
-  constructor(message: string = 'Rate limit exceeded') {
-    super('RATE_LIMIT', 429, message);
-  }
-}
-
-// Global error handler middleware
-export function errorHandler(error: unknown) {
-  if (error instanceof TripKitError) {
-    return Response.json(
-      {
-        error: error.code,
-        message: error.message,
-        details: error.details,
-      },
-      { status: error.statusCode }
-    );
-  }
-
-  // Unexpected errors
-  console.error('Unexpected error:', error);
-  return Response.json(
-    {
-      error: 'INTERNAL_ERROR',
-      message: 'An unexpected error occurred',
-    },
-    { status: 500 }
-  );
-}
-```
-
-### Retry Logic
-```typescript
-// lib/retry.ts
-export async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (attempt === maxRetries) throw error;
-
-      const delay = baseDelay * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw new Error('Max retries exceeded');
-}
-
-// Usage
-const destinations = await retryWithBackoff(
-  () => openai.chat.completions.create({ ... }),
-  3,
-  1000
-);
-```
+4. **환경 변수**:
+   - GitHub Repository Settings에서 환경 변수 설정
+   - Vercel 통합을 통한 자동 환경 변수 주입
 
 ---
 
 ## 📚 External Dependencies
 
-### Required APIs
-| Service | Purpose | Pricing | Rate Limits |
-|---------|---------|---------|-------------|
-| **OpenAI GPT-4** | Chatbot, recommendations | ~$0.03/1K tokens | 10K requests/min |
-| **OpenAI DALL-E 3** | Image generation | ~$0.04/image (1024x1024) | 50 requests/min |
+### Required Services
 
-### Optional Services (Post-MVP)
-| Service | Purpose | Status |
-|---------|---------|--------|
-| **Google Maps API** | Coordinates, directions | Future |
-| **Supabase** | User database, auth | Future |
-| **Redis Cloud** | Session caching | Future |
-| **Sentry** | Error tracking | Optional |
+| Service | Purpose | Pricing |
+|---------|---------|---------|
+| **OpenAI GPT-4o-mini** | Chat, Recommendations | ~$0.15/1M input tokens |
+| **Google Gemini Imagen** | Image generation | Usage-based |
+| **Google Maps Places** | Location enrichment | $17/1K requests |
+| **Tavily Search** | Keyword extraction | Free tier available |
 
-### NPM Packages
-```json
-{
-  "dependencies": {
-    "next": "^14.2.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "typescript": "^5.0.0",
-    "tailwindcss": "^3.4.0",
-    "zustand": "^4.5.0",
-    "@tanstack/react-query": "^5.0.0",
-    "openai": "^4.0.0",
-    "langchain": "^0.1.0",
-    "@langchain/langgraph": "^0.0.1",
-    "zod": "^3.22.0",
-    "axios": "^1.6.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.3.0",
-    "jest": "^29.7.0",
-    "@testing-library/react": "^14.0.0",
-    "@playwright/test": "^1.40.0",
-    "eslint": "^8.0.0",
-    "prettier": "^3.0.0",
-    "husky": "^8.0.0"
-  }
-}
+### Python Dependencies
+
 ```
-
----
-
-## 🗓️ Implementation Timeline (1 Week)
-
-### Day 1-2: Foundation & Chatbot
-- [ ] Next.js project setup with TypeScript
-- [ ] Tailwind CSS configuration
-- [ ] LangGraph conversation flow implementation
-- [ ] `/api/chat` endpoint
-- [ ] Basic UI: Landing page + Chat interface
-
-### Day 3-4: Recommendations
-- [ ] GPT-4 prompt engineering for destinations
-- [ ] `/api/recommendations/destinations` endpoint
-- [ ] `/api/recommendations/hidden-spots` endpoint
-- [ ] Concept selection UI
-- [ ] Destination cards UI
-- [ ] Hidden spot gallery UI
-
-### Day 5-6: Image Generation & Styling
-- [ ] DALL-E 3 integration
-- [ ] `/api/generate/image` endpoint (with async handling)
-- [ ] `/api/recommendations/styling` endpoint
-- [ ] Image generation UI with loading states
-- [ ] Styling recommendations display
-- [ ] Complete user flow integration
-
-### Day 7: Testing & Polish
-- [ ] End-to-end user flow testing
-- [ ] Bug fixes
-- [ ] Performance optimization
-- [ ] Mobile responsiveness check
-- [ ] Deploy to Vercel
-- [ ] Documentation finalization
+# requirements.txt
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+langgraph>=0.6.4
+langchain>=0.3.27
+langchain-openai>=0.3.18
+langchain-google-genai>=2.1.5
+fastmcp>=2.11.0
+langchain-mcp-adapters>=0.1.9
+google-generativeai>=0.8.5
+openai>=1.0.0
+pydantic>=2.0.0
+structlog>=25.4.0
+httpx>=0.28.0
+python-dotenv>=1.0.0
+```
 
 ---
 
 ## 🔮 Future Enhancements (Post-MVP)
 
-### Phase 2 (Weeks 2-4)
+### Phase 2
+
 - User authentication (Supabase Auth)
-- Save recommendations to user profile
+- PostgresSaver for persistent sessions
+- User profile and preferences storage
 - Share functionality (social media, export PDF)
-- Admin dashboard for curated content
 
-### Phase 3 (Months 2-3)
+### Phase 3
+
+- Redis caching for API responses
 - O2O rental system integration
-- Inventory management
 - Payment processing (Stripe)
-- Delivery logistics
-
-### Phase 4 (Months 4-6)
-- Machine learning recommendation improvements
-- User-generated content (reviews, photos)
-- Community features
 - Mobile app (React Native)
-
----
-
-## 📞 Technical Support Contacts
-
-### Internal Team
-- **Tech Lead**: [Contact Info]
-- **Backend Engineer**: [Contact Info]
-- **Frontend Engineer**: [Contact Info]
-- **DevOps**: [Contact Info]
-
-### External Services
-- **OpenAI Support**: support@openai.com
-- **Vercel Support**: support@vercel.com
-- **Supabase Support**: support@supabase.io
 
 ---
 
 ## 📝 Appendix
 
 ### A. Glossary
-- **LangGraph**: State machine framework for conversational AI
+
+- **LangGraph**: State machine framework for AI agent workflows
+- **Human-in-the-loop**: Pattern where workflow pauses for user input
+- **SSE (Server-Sent Events)**: One-way real-time communication from server to client
+- **MCP (Model Context Protocol)**: Standard for AI tool integration
+- **Strategy Pattern**: Design pattern for interchangeable algorithms (LLM providers)
 - **Film Aesthetic**: Visual style mimicking analog film cameras
-- **Hidden Spots**: Non-mainstream locations favored by locals
-- **O2O**: Online-to-Offline service model
-- **Concept**: Predefined aesthetic/thematic travel style
 
 ### B. Reference Links
-- [OpenAI API Documentation](https://platform.openai.com/docs)
+
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Next.js Documentation](https://nextjs.org/docs)
-- [Vercel Deployment Guide](https://vercel.com/docs)
+- [Gemini Imagen API](https://cloud.google.com/vertex-ai/generative-ai/docs/image/overview)
+- [OpenAI API Documentation](https://platform.openai.com/docs)
 
 ### C. Revision History
+
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
 | 1.0.0 | 2025-12-03 | Initial TRD for MVP | Engineering Team |
+| 2.0.0 | 2025-12-10 | Updated to reflect actual implementation: 3-Agent Architecture, Python backend, Gemini Imagen, SSE streaming | Engineering Team |
 
 ---
 
-**Document Status**: ✅ Ready for Implementation
-**Next Review**: End of Day 2 (Chatbot completion)
+**Document Status**: ✅ Ready for Development Reference

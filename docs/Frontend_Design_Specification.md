@@ -5,8 +5,8 @@
 
 ## Document Information
 
-- **Document Version**: 1.0.0
-- **Last Updated**: 2025-12-04
+- **Document Version**: 2.0.0
+- **Last Updated**: 2025-12-10
 - **Author**: Frontend Architecture Team
 - **Related Documents**: [PRD](./PRD_TripKit_MVP.md), [TRD](./TRD_TripKit_MVP.md), [API Docs](./API_Documentation.md)
 - **Status**: Ready for Implementation
@@ -31,45 +31,33 @@
 
 ```
 app/
-├── (marketing)/
-│   └── page.tsx                    # Landing Page (/)
+├── page.tsx                        # Landing Page (/)
 │
 ├── chat/
 │   └── page.tsx                    # Vibe Chat Interface (/chat)
 │
-├── destinations/
-│   ├── page.tsx                    # Destination Results (/destinations)
-│   └── [id]/
-│       ├── page.tsx                # Destination Detail (/destinations/[id])
-│       └── spots/
-│           ├── page.tsx            # Hidden Spots Gallery (/destinations/[id]/spots)
-│           └── [spotId]/
-│               └── page.tsx        # Spot Detail (/destinations/[id]/spots/[spotId])
-│
 ├── concept/
 │   └── page.tsx                    # Concept Selection (/concept)
+│
+├── destinations/
+│   └── page.tsx                    # SSE Streaming Destinations (/destinations)
+│
+├── tripkit/
+│   └── page.tsx                    # TripKit Package (Gift Box UI) (/tripkit)
 │
 ├── generate/
 │   └── page.tsx                    # Image Generation (/generate)
 │
-├── summary/
-│   └── page.tsx                    # Recommendations Summary (/summary)
-│
-├── api/
+├── api/                            # API Routes (Proxy to FastAPI Backend)
 │   ├── chat/
-│   │   └── route.ts                # POST /api/chat
+│   │   └── route.ts                # POST /api/chat → Backend ChatAgent
 │   ├── recommendations/
-│   │   ├── destinations/
-│   │   │   └── route.ts            # POST /api/recommendations/destinations
-│   │   ├── hidden-spots/
-│   │   │   └── route.ts            # POST /api/recommendations/hidden-spots
-│   │   └── styling/
-│   │       └── route.ts            # POST /api/recommendations/styling
+│   │   └── destinations/
+│   │       ├── route.ts            # POST /api/recommendations/destinations
+│   │       └── stream/
+│   │           └── route.ts        # POST /api/recommendations/destinations/stream (SSE)
 │   └── generate/
-│       └── image/
-│           ├── route.ts            # POST /api/generate/image
-│           └── [taskId]/
-│               └── route.ts        # GET /api/generate/image/[taskId]
+│       └── route.ts                # POST /api/generate → Backend ImageAgent
 │
 ├── layout.tsx                      # Root Layout
 ├── globals.css                     # Global Styles
@@ -83,14 +71,11 @@ components/
 │   ├── Badge.tsx
 │   ├── Skeleton.tsx
 │   ├── Progress.tsx
-│   ├── Modal.tsx
-│   └── Toast.tsx
+│   └── Modal.tsx
 │
 ├── layout/                         # Layout Components
 │   ├── Header.tsx
-│   ├── Footer.tsx
-│   ├── Navigation.tsx
-│   └── MobileNav.tsx
+│   └── Footer.tsx
 │
 ├── landing/                        # Landing Page Components
 │   ├── Hero.tsx
@@ -107,79 +92,36 @@ components/
 │   └── ProgressBar.tsx
 │
 ├── concept/                        # Concept Selection Components
-│   ├── ConceptGallery.tsx
-│   ├── ConceptCard.tsx
-│   └── ConceptDetail.tsx
+│   └── ConceptCard.tsx
 │
-├── destinations/                   # Destination Components
-│   ├── DestinationGrid.tsx
+├── destinations/                   # Destination Components (SSE Streaming)
 │   ├── DestinationCard.tsx
-│   ├── DestinationDetail.tsx
-│   └── MatchReason.tsx
+│   └── DestinationModal.tsx
 │
-├── spots/                          # Hidden Spots Components
-│   ├── SpotGallery.tsx
-│   ├── SpotCard.tsx
-│   ├── SpotDetail.tsx
-│   ├── PhotographyTips.tsx
-│   └── FilmRecommendation.tsx
+├── tripkit/                        # TripKit Components
+│   ├── GiftBox.tsx                 # 선물 상자 컨테이너
+│   ├── WrappedGift.tsx             # 포장된 선물
+│   └── Postcard.tsx                # 여행 엽서
 │
-├── generate/                       # Image Generation Components
-│   ├── ImageGenerator.tsx
-│   ├── GenerationProgress.tsx
-│   ├── ImagePreview.tsx
-│   └── DownloadButton.tsx
-│
-├── styling/                        # Styling Recommendation Components
-│   ├── StylingPackage.tsx
-│   ├── CameraRecommendation.tsx
-│   ├── FilmStockCard.tsx
-│   ├── OutfitPalette.tsx
-│   ├── PropsGallery.tsx
-│   └── AngleGuide.tsx
-│
-└── shared/                         # Shared Components
-    ├── LoadingScreen.tsx
-    ├── ErrorBoundary.tsx
-    ├── ImageWithFallback.tsx
-    └── FilmGrainOverlay.tsx
+└── generate/                       # Image Generation Components
+    ├── ImageGenerator.tsx
+    ├── GenerationProgress.tsx
+    └── ImagePreview.tsx
 
 lib/
-├── store/                          # Zustand Stores
-│   ├── useVibeStore.ts             # User preferences & vibe state
-│   ├── useChatStore.ts             # Chat conversation state
-│   └── useSessionStore.ts          # Session management
-│
-├── hooks/                          # Custom Hooks
-│   ├── useChat.ts                  # Chat API integration
-│   ├── useDestinations.ts          # Destination fetching
-│   ├── useHiddenSpots.ts           # Hidden spots fetching
-│   ├── useImageGeneration.ts       # Image generation with polling
-│   └── useStyling.ts               # Styling recommendations
-│
-├── api/                            # API Client Functions
-│   ├── chat.ts
-│   ├── destinations.ts
-│   ├── hiddenSpots.ts
-│   ├── imageGeneration.ts
-│   └── styling.ts
+├── store/                          # Zustand Stores (persist middleware)
+│   ├── useChatStore.ts             # 대화 상태 + 세션 (7일 TTL)
+│   └── useVibeStore.ts             # 추천 + 이미지 생성 상태
 │
 ├── types/                          # TypeScript Types
-│   ├── user.ts
-│   ├── destination.ts
-│   ├── spot.ts
-│   ├── styling.ts
-│   └── api.ts
+│   └── index.ts                    # 통합 타입 정의
 │
 ├── utils/                          # Utility Functions
-│   ├── cn.ts                       # classNames utility
-│   ├── formatters.ts               # Data formatters
-│   └── validators.ts               # Input validation
+│   └── cn.ts                       # clsx + tailwind-merge
 │
 └── constants/                      # Constants
     ├── concepts.ts                 # Concept definitions
-    ├── filmStocks.ts               # Film stock data
-    └── animations.ts               # Animation presets
+    └── filmStocks.ts               # Film stock data
 
 public/
 ├── images/
@@ -1146,9 +1088,85 @@ export function DestinationCard({
 }
 ```
 
+### SSE 스트리밍 구현 (destinations/page.tsx)
+
+```typescript
+const loadDestinationsStream = useCallback(async () => {
+  const response = await fetch("/api/recommendations/destinations/stream", {
+    method: "POST",
+    body: JSON.stringify({ preferences, concept }),
+    signal: abortControllerRef.current.signal,
+  });
+
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        const event = JSON.parse(line.slice(6));
+        if (event.type === "destination") {
+          addDestination(event.destination);  // 실시간 UI 업데이트
+        }
+      }
+    }
+  }
+}, []);
+```
+
 ---
 
-### 5. Hidden Spots Gallery (`/destinations/[id]/spots`)
+### 5. TripKit Page (`/tripkit`)
+
+**Purpose**: 완성된 여행 패키지를 선물 상자 UI로 표시
+
+#### Layout Structure
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Header                                                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │ "당신만의 여행 패키지가 완성되었어요!"                     │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │ GIFT BOX (Unwrapping Animation)                         │   │
+│   │                                                         │   │
+│   │   ┌─────────────────────────────────────────────────┐   │   │
+│   │   │           🎁 선물 상자                           │   │   │
+│   │   │                                                 │   │   │
+│   │   │         [Click to Unwrap]                       │   │   │
+│   │   │                                                 │   │   │
+│   │   └─────────────────────────────────────────────────┘   │   │
+│   │                                                         │   │
+│   │   [After Unwrap]                                        │   │
+│   │   ┌─────────────────────────────────────────────────┐   │   │
+│   │   │ 📍 Selected Destination                         │   │   │
+│   │   │ 🎨 Selected Concept                             │   │   │
+│   │   │ 📷 Camera Recommendation                        │   │   │
+│   │   │ 🎞️ Film Stock                                   │   │   │
+│   │   │ 👗 Outfit Style                                 │   │   │
+│   │   └─────────────────────────────────────────────────┘   │   │
+│   │                                                         │   │
+│   │   [Generate Preview Image] Primary Button               │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 6. Hidden Spots Gallery (향후 구현)
 
 **Purpose**: Display 5-10 hidden spots for selected destination
 
@@ -1727,116 +1745,100 @@ export function ImageGenerator({
 
 ## State Management
 
-### Zustand Store: `useVibeStore.ts`
+### Zustand Stores
+
+TripKit은 두 개의 Zustand 스토어를 사용합니다:
+- `useChatStore`: 대화 상태 및 세션 관리 (7일 TTL)
+- `useVibeStore`: 추천 결과 및 이미지 생성 상태
+
+### 1. useChatStore - 대화 상태 관리
+
+```typescript
+// lib/store/useChatStore.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface ChatState {
+  // Session (7일 TTL)
+  sessionId: string;
+  sessionCreatedAt: number;
+  sessionLastActiveAt: number;
+
+  // Messages
+  messages: Message[];
+  currentStep: ConversationStep;  // init → mood → aesthetic → ... → complete
+
+  // Collected Data
+  collectedData: TripKitProfile;
+  rejectedItems: RejectedItems;
+
+  // Actions
+  initSession: () => string;      // 세션 초기화/복구
+  resetSession: () => string;     // 세션 리셋
+  addMessage: (msg: Message) => void;
+  loadFromHistory: (history: ChatHistory) => void;
+}
+
+// 대화 단계 (10단계)
+type ConversationStep =
+  | 'init' | 'mood' | 'aesthetic' | 'duration'
+  | 'interests' | 'destination' | 'scene'
+  | 'styling' | 'summary' | 'complete';
+
+// persist middleware로 localStorage 저장
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      // ... state and actions
+    }),
+    {
+      name: 'tripkit-chat-storage',
+      // 7일 TTL 세션 관리
+    }
+  )
+);
+```
+
+### 2. useVibeStore - 추천 및 이미지 생성 상태
 
 ```typescript
 // lib/store/useVibeStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { UserPreferences, Destination, HiddenSpot, StylingRecommendation } from '@/lib/types';
 
 interface VibeState {
-  // Session
-  sessionId: string | null;
-
-  // User Preferences
+  // User Selection
+  selectedConcept: Concept | null;
+  selectedDestination: Destination | null;
   preferences: UserPreferences;
 
-  // Selected Items
-  selectedConcept: 'flaneur' | 'filmlog' | 'midnight' | null;
-  selectedDestination: Destination | null;
-  selectedSpots: HiddenSpot[];
-
-  // Recommendations
+  // Recommendations (SSE로 점진적 추가)
   destinations: Destination[];
   hiddenSpots: HiddenSpot[];
-  styling: StylingRecommendation | null;
 
-  // Generated Images
-  generatedImages: { spotId: string; imageUrl: string }[];
+  // Image Generation
+  generatedImages: GeneratedImage[];
+  imageGenerationContext: ImageGenerationContext | null;
+
+  // TripKit 챗봇
+  tripKitProfile: TripKitProfile;
+  tripKitStep: TripKitStep;
 
   // Actions
-  setSessionId: (id: string) => void;
-  setPreferences: (prefs: Partial<UserPreferences>) => void;
-  setConcept: (concept: 'flaneur' | 'filmlog' | 'midnight') => void;
-  setDestinations: (destinations: Destination[]) => void;
-  selectDestination: (destination: Destination) => void;
-  setHiddenSpots: (spots: HiddenSpot[]) => void;
-  toggleSpotSelection: (spot: HiddenSpot) => void;
-  setStyling: (styling: StylingRecommendation) => void;
-  addGeneratedImage: (spotId: string, imageUrl: string) => void;
-  resetSession: () => void;
+  addDestination: (dest: Destination) => void;    // 스트리밍 destination 추가
+  clearDestinations: () => void;                   // 새 추천 시 초기화
+  setImageGenerationContext: (ctx: ImageGenerationContext) => void;
 }
 
-const initialState = {
-  sessionId: null,
-  preferences: {
-    mood: undefined,
-    aesthetic: undefined,
-    duration: undefined,
-    interests: [],
-    concept: undefined,
-  },
-  selectedConcept: null,
-  selectedDestination: null,
-  selectedSpots: [],
-  destinations: [],
-  hiddenSpots: [],
-  styling: null,
-  generatedImages: [],
-};
-
+// partialize로 일부 필드만 localStorage 저장
 export const useVibeStore = create<VibeState>()(
   persist(
     (set, get) => ({
-      ...initialState,
-
-      setSessionId: (id) => set({ sessionId: id }),
-
-      setPreferences: (prefs) =>
-        set((state) => ({
-          preferences: { ...state.preferences, ...prefs },
-        })),
-
-      setConcept: (concept) =>
-        set((state) => ({
-          selectedConcept: concept,
-          preferences: { ...state.preferences, concept },
-        })),
-
-      setDestinations: (destinations) => set({ destinations }),
-
-      selectDestination: (destination) => set({ selectedDestination: destination }),
-
-      setHiddenSpots: (spots) => set({ hiddenSpots: spots }),
-
-      toggleSpotSelection: (spot) =>
-        set((state) => {
-          const isSelected = state.selectedSpots.some((s) => s.id === spot.id);
-          return {
-            selectedSpots: isSelected
-              ? state.selectedSpots.filter((s) => s.id !== spot.id)
-              : [...state.selectedSpots, spot],
-          };
-        }),
-
-      setStyling: (styling) => set({ styling }),
-
-      addGeneratedImage: (spotId, imageUrl) =>
-        set((state) => ({
-          generatedImages: [
-            ...state.generatedImages.filter((img) => img.spotId !== spotId),
-            { spotId, imageUrl },
-          ],
-        })),
-
-      resetSession: () => set(initialState),
+      // ... state and actions
     }),
     {
       name: 'tripkit-vibe-storage',
       partialize: (state) => ({
-        sessionId: state.sessionId,
-        preferences: state.preferences,
         selectedConcept: state.selectedConcept,
         selectedDestination: state.selectedDestination,
         generatedImages: state.generatedImages,
@@ -2084,13 +2086,29 @@ export function useDestinations(preferences: UserPreferences) {
 
 ---
 
+## User Flow
+
+```
+[Landing /] → [Chat /chat] → [Concept /concept] → [Destinations /destinations] → [TripKit /tripkit] → [Generate /generate]
+     │           │              │                      │                            │                    │
+     │           │              │                      │                            │                    └── 이미지 생성
+     │           │              │                      │                            └── 여행 패키지 완성
+     │           │              │                      └── SSE 스트리밍 추천
+     │           │              └── 컨셉 선택 (flaneur/filmlog/midnight)
+     │           └── AI 대화 (10단계 Human-in-the-loop)
+     └── 랜딩 페이지
+```
+
+---
+
 ## Revision History
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
 | 1.0.0 | 2025-12-04 | Initial Frontend Design Specification | Frontend Team |
+| 2.0.0 | 2025-12-10 | Updated to reflect actual implementation (TripKit page, SSE streaming, state management) | Frontend Team |
 
 ---
 
-**Document Status**: Ready for Implementation
-**Next Review**: After MVP completion
+**Document Status**: Updated to reflect actual implementation
+**Last Updated**: 2025-12-10
