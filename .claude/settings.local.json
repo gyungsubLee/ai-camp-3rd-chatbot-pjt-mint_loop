@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(python test_places_api.py:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "commands": [
+          "echo '\n📋 CLAUDE.md Location: .claude/CLAUDE.md\n💡 Remember to check project structure, sub-agents, and documentation before major changes.'"
+        ]
+      }
+    ]
+  }
+}
