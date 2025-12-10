@@ -133,43 +133,73 @@ graph TB
 
 ### **4.2 데이터 흐름도**
 
-#### **① 채팅 플로우 (ChatAgent)**
-```
-1. 사용자 메시지 입력 → useChatStore.addMessage()
-2. POST /api/chat (sessionId 포함)
-3. Backend: ChatAgent._resume_conversation() → 세션 복구
-4. LangGraph: process_message → route_after_process
-5. Human-in-the-loop: wait_input → END (상태 저장)
-6. Response: { reply, currentStep, nextStep, isComplete, collectedData }
-7. Frontend: 메시지 업데이트 + 다음 단계 진행
-```
+```mermaid
+sequenceDiagram
+    participant User as 사용자
+    participant Frontend as Frontend<br/>(Next.js)
+    participant API as API Server<br/>(FastAPI)
+    participant ChatAgent as ChatAgent
+    participant RecAgent as RecommendationAgent
+    participant ImageAgent as ImageAgent
+    participant MCP as MCP Servers
+    participant External as External APIs
 
-#### **② 추천 플로우 (RecommendationAgent + SSE)**
-```
-1. useVibeStore에서 preferences + concept 준비
-2. POST /api/recommendations/destinations/stream
-3. Backend: RecommendationAgent 실행
-   → analyze_preferences → build_prompt → generate_recommendations
-   → LLM (gpt-4o-mini) 호출 (3-5s)
-   → parse_response (3개 destinations)
-   → SSE: destination 이벤트 3회 전송
-4. Parallel: enrich_with_places (ThreadPoolExecutor)
-   → Google Places API 병렬 호출 (2-3s)
-   → SSE: complete 이벤트 전송
-5. Frontend: ReadableStream 소비
-   → useVibeStore.addDestination() 실시간 UI 업데이트
-```
+    %% ① 채팅 플로우 (Vibe 수집)
+    rect rgb(227, 242, 253)
+    Note over User,External: ① 채팅 플로우 (ChatAgent - Human-in-the-Loop)
+    User->>Frontend: 메시지 입력
+    Frontend->>Frontend: useChatStore.addMessage()
+    Frontend->>API: POST /api/chat (sessionId)
+    API->>ChatAgent: _resume_conversation()
+    ChatAgent->>ChatAgent: process_message → route_after_process
+    ChatAgent->>External: OpenAI GPT-4o-mini
+    External-->>ChatAgent: AI 응답
+    ChatAgent->>ChatAgent: wait_input (Human-in-the-loop)
+    ChatAgent-->>API: { reply, currentStep, collectedData }
+    API-->>Frontend: Response
+    Frontend-->>User: 메시지 표시 + 다음 단계
+    end
 
-#### **③ 이미지 생성 플로우 (ImageAgent)**
-```
-1. POST /api/generate (locationName, concept, filmStock)
-2. Backend: ImageAgent 실행
-   → extract_keywords (Search MCP)
-   → optimize_prompt (직접 구현)
-   → generate_image (Gemini Imagen)
-3. Gemini Imagen 3.0 호출 (10-15s)
-4. Response: { imageUrl, status, metadata }
-5. Frontend: 이미지 표시 + 다운로드 옵션
+    %% ② 추천 플로우 (SSE 스트리밍)
+    rect rgb(255, 243, 224)
+    Note over User,External: ② 추천 플로우 (RecommendationAgent - SSE Streaming)
+    User->>Frontend: 추천 요청
+    Frontend->>Frontend: useVibeStore (preferences + concept)
+    Frontend->>API: POST /api/recommendations/destinations/stream
+    API->>RecAgent: 추천 생성 시작
+    RecAgent->>RecAgent: analyze_preferences → build_prompt
+    RecAgent->>External: OpenAI GPT-4o-mini (3-5s)
+    External-->>RecAgent: 3개 여행지 추천
+
+    loop SSE 스트리밍 (3회)
+        RecAgent-->>Frontend: SSE: destination 이벤트
+        Frontend->>Frontend: useVibeStore.addDestination()
+    end
+
+    par 병렬 처리
+        RecAgent->>External: Google Places API (병렬)
+        External-->>RecAgent: 장소 상세 정보
+    end
+
+    RecAgent-->>Frontend: SSE: complete 이벤트
+    Frontend-->>User: 실시간 UI 업데이트
+    end
+
+    %% ③ 이미지 생성 플로우
+    rect rgb(252, 228, 236)
+    Note over User,External: ③ 이미지 생성 플로우 (ImageAgent - MCP Integration)
+    User->>Frontend: 이미지 생성 요청
+    Frontend->>API: POST /api/generate
+    API->>ImageAgent: 이미지 생성 시작
+    ImageAgent->>MCP: extract_keywords (Search MCP)
+    MCP-->>ImageAgent: 키워드 추출 결과
+    ImageAgent->>ImageAgent: optimize_prompt
+    ImageAgent->>External: Gemini Imagen 3.0 (10-15s)
+    External-->>ImageAgent: 생성된 이미지 URL
+    ImageAgent-->>API: { imageUrl, status, metadata }
+    API-->>Frontend: Response
+    Frontend-->>User: 이미지 표시 + 다운로드
+    end
 ```
 
 ---
@@ -293,7 +323,7 @@ mintloop/
 cd backend
 
 # 전체 서비스 시작 (FastAPI + MCP 서버)
-docker-compose up -d
+docker-compose --env-file ../.env up -d
 
 # 로그 확인
 docker-compose logs -f
