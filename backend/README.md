@@ -109,11 +109,39 @@ class ChatState(TypedDict):
 | camera | 카메라 | "Contax T2" |
 | complete | 완료 | 최종 컨텍스트 확인 |
 
-#### 세션 복구 기능
+#### Human-in-the-loop 메커니즘
 
-- `MemorySaver`를 통한 체크포인트 저장
-- `thread_id` 기반 대화 복구
-- 중단된 대화 이어서 진행 가능
+**LangGraph 워크플로우**:
+
+```mermaid
+graph LR
+    PM[process_message] -->|route_after_process| Decision{조건 분기}
+    Decision -->|"finalize"| F[finalize] --> END1([END])
+    Decision -->|"wait_input"| END2([END<br/>상태 저장])
+
+    END2 -.->|다음 사용자 입력| PM
+
+    style END2 fill:#fff3e0
+```
+
+**핵심 구성 요소**:
+
+| 구성 요소 | 역할 |
+|-----------|------|
+| `wait_input → END` | 그래프 실행 중단 (인터럽트 지점) |
+| `MemorySaver` | 상태 영속화 (`session_id` 기준) |
+| `_resume_conversation()` | 저장된 상태 복원 후 그래프 재실행 |
+| `route_after_process()` | 완료/대기 분기 결정 |
+
+**세션 복구 흐름**:
+
+```python
+# 1. 첫 번째 입력
+[사용자 입력] → process_message → wait_input → END (상태 저장)
+
+# 2. 두 번째 입력 (재개)
+[사용자 입력] → _resume_conversation() → 기존 상태 복원 → process_message → ...
+```
 
 ---
 
@@ -223,13 +251,14 @@ graph TB
     end
 
     Extract -.-> |"Search MCP"| SearchMCP[(Search MCP<br/>:8050)]
-    Optimize -.-> |"Image MCP"| ImageMCP[(Image MCP<br/>:8051)]
     Generate -.-> |"Gemini Imagen"| Gemini[(Gemini API)]
 
     style Extract fill:#e3f2fd
-    style Optimize fill:#e3f2fd
+    style Optimize fill:#fff3e0
     style Generate fill:#fce4ec
 ```
+
+> **Note**: `optimize_prompt`는 MCP 서버를 사용하지 않고 직접 구현되어 있습니다.
 
 #### State 구조
 
@@ -250,7 +279,9 @@ class ImageGenerationState(TypedDict):
 | 서버 | 포트 | 기능 |
 |------|------|------|
 | Search MCP | 8050 | `extract_keywords`: 텍스트에서 키워드 추출 |
-| Image MCP | 8051 | `optimize_prompt`: 이미지 생성용 프롬프트 최적화<br/>`generate_image`: Gemini Imagen으로 이미지 생성 |
+| Image MCP | 8051 | `generate_image`: Gemini Imagen으로 이미지 생성 |
+
+> **Note**: `optimize_prompt`는 MCP 서버가 아닌 `nodes.py`에서 직접 구현됩니다.
 
 ---
 

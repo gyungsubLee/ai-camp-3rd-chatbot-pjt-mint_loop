@@ -33,10 +33,11 @@ class RecommendationAgent:
     """여행지 추천 Agent
 
     LangGraph를 사용하여 구현된 여행지 추천 워크플로우:
-    1. 사용자 선호도 분석
-    2. 프롬프트 구성
-    3. LLM 추천 생성 (OpenAI/Gemini 선택 가능)
-    4. 응답 파싱
+    1. 사용자 선호도 분석 (analyze_preferences)
+    2. 프롬프트 구성 (build_prompt)
+    3. LLM 추천 생성 (generate_recommendations) - OpenAI/Gemini 선택 가능
+    4. 응답 파싱 (parse_response)
+    5. Google Places API 정보 보강 (enrich_with_places)
 
     Strategy Pattern을 통해 다양한 LLM Provider를 지원합니다.
     """

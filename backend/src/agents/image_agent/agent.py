@@ -24,13 +24,11 @@ class ImageGenerationAgent:
     """이미지 생성 Agent
 
     LangGraph를 사용하여 구현된 이미지 생성 워크플로우:
-    1. 사용자 입력 수신
-    2. 키워드 추출 (Search MCP)
-    3. 프롬프트 최적화 (직접 구현)
-    4. 이미지 생성 (Gemini Imagen)
+    1. 키워드 추출 (extract_keywords) - Search MCP 활용
+    2. 프롬프트 최적화 (optimize_prompt)
+    3. 이미지 생성 (generate_image) - Gemini Imagen
 
     Google Gemini Imagen 모델을 사용합니다.
-    기본 모델: imagen-3.0-generate-001 (nano-banana)
     """
 
     def __init__(
